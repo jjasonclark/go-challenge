@@ -79,10 +79,10 @@ func decodeTracks(input io.Reader, tracks *[]Track) error {
 		if err = readValue(input, &track.id); err != nil {
 			continue
 		}
-		if err = decodeInstramentName(input, &track.name); err != nil {
+		if err = readInstramentName(input, &track.name); err != nil {
 			continue
 		}
-		if err = decodeNotes(input, &track.steps); err != nil {
+		if err = readNotes(input, &track.steps); err != nil {
 			continue
 		}
 		output = append(output, track)
@@ -94,7 +94,7 @@ func decodeTracks(input io.Reader, tracks *[]Track) error {
 	return err
 }
 
-func decodeInstramentName(input io.Reader, name *string) error {
+func readInstramentName(input io.Reader, name *string) error {
 	var length byte
 	if err := readValue(input, &length); err != nil {
 		return err
@@ -107,7 +107,7 @@ func decodeInstramentName(input io.Reader, name *string) error {
 	return nil
 }
 
-func decodeNotes(input io.Reader, steps *[16]bool) error {
+func readNotes(input io.Reader, steps *[16]bool) error {
 	var notes [16]byte
 	if err := readValue(input, &notes); err != nil {
 		return err
