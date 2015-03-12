@@ -32,7 +32,7 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := decodeTracks(input, &p, header.Length-34); err != nil {
+	if _, err := decodeTracks(input, &p, header.Length-36); err != nil {
 		return nil, err
 	}
 	p.Version = convertFromZeroTerminatedString(header.Version[:])
@@ -77,15 +77,36 @@ const (
 	trackStepsLength = 16
 )
 
+type foo func(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error)
 type trackReadPartial func(io.Reader, *Track) (uint64, error)
 
-func decodeTracks(input io.Reader, pattern *Pattern, maxLength uint64) error {
+func decodeVersion(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
+	var version [32]byte
+	if err := readValue(input, &version); err != nil {
+		return 0, err
+	}
+	//trim trailing 0s because string is zero terminated
+	pattern.Version = string(bytes.TrimRight(version[:], "\u0000"))
+	return 32, nil
+}
+
+func decodeTempo(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
+	var tempo float32
+	if err := readValue(input, &tempo); err != nil {
+		return 0, err
+	}
+	pattern.Tempo = float64(tempo)
+	return 4, nil
+}
+
+func decodeTracks(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
 	output := make([]Track, 0, initialTrackCapacity)
 	var err error
+	var totalRead, bytesRead uint64
 	for err == nil && maxLength > 0 {
 		var track Track
-		var bytesRead uint64
-		bytesRead, err = decodeTrack(input, &track, maxLength)
+		bytesRead, err = readTrack(input, &track, maxLength)
+		totalRead += bytesRead
 		maxLength -= bytesRead
 		if err == nil {
 			output = append(output, track)
@@ -93,12 +114,12 @@ func decodeTracks(input io.Reader, pattern *Pattern, maxLength uint64) error {
 	}
 	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
 		pattern.Tracks = output
-		return nil
+		return totalRead, nil
 	}
-	return err
+	return totalRead, err
 }
 
-func decodeTrack(input io.Reader, track *Track, maxLength uint64) (uint64, error) {
+func readTrack(input io.Reader, track *Track, maxLength uint64) (uint64, error) {
 	readers := []trackReadPartial{readId, readInstramentName, readSteps}
 	var totalRead, bytesRead uint64
 	var err error
