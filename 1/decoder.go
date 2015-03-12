@@ -18,7 +18,6 @@ const initialTrackCapacity = 10
 // TODO: implement
 func DecodeFile(path string) (*Pattern, error) {
 	var (
-		pat       Pattern
 		inputFile *os.File
 		err       error
 	)
@@ -27,10 +26,19 @@ func DecodeFile(path string) (*Pattern, error) {
 		return nil, err
 	}
 	defer inputFile.Close() // Close when function exits
-	if err = decodeHeader(inputFile, &pat); err != nil {
+	return Decode(inputFile)
+}
+
+func Decode(input io.Reader) (*Pattern, error) {
+	var (
+		pat Pattern
+		err error
+	)
+
+	if err = decodeHeader(input, &pat); err != nil {
 		return nil, err
 	}
-	if err = decodeTracks(inputFile, &pat.tracks); err != nil {
+	if err = decodeTracks(input, &pat.tracks); err != nil {
 		return nil, err
 	}
 	return &pat, nil
