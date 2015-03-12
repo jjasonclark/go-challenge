@@ -33,15 +33,10 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeBinary(reader)
-}
-
-func decodeBinary(input io.Reader) (*Pattern, error) {
 	var p Pattern
-	var err error
 	var binaryDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
 	for i := 0; i < len(binaryDecoders) && err == nil; i++ {
-		err = binaryDecoders[i](input, &p)
+		err = binaryDecoders[i](reader, &p)
 	}
 	if err == nil || err == io.EOF {
 		return &p, nil
@@ -104,9 +99,9 @@ func readTracks(input io.Reader, pattern *Pattern) error {
 
 func readTrack(input io.Reader, track *Track) error {
 	var err error
-	var trackDataReaders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
-	for i := 0; i < len(trackDataReaders) && err == nil; i++ {
-		err = trackDataReaders[i](input, track)
+	var trackDecoders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
+	for i := 0; i < len(trackDecoders) && err == nil; i++ {
+		err = trackDecoders[i](input, track)
 	}
 	return err
 }
