@@ -45,13 +45,6 @@ type spliceFileHeader struct {
 	Tempo   float32
 }
 
-// type spliceFileStep struct {
-// 	Id    uint32
-//  NameLength byte  as length of name
-// 	Name  []byte as ascii string
-// 	Notes [16]byte as bools
-// }
-
 func decodeHeader(input io.Reader, p *Pattern) error {
 	var header spliceFileHeader
 	if err := readValue(input, &header); err != nil {
@@ -69,6 +62,13 @@ func zeroTerminatedString(str []byte) string {
 	//trim trailing 0s because string is zero terminated
 	return string(bytes.TrimRight(str, "\u0000"))
 }
+
+// type spliceFileStep struct {
+// 	Id    uint32
+//  NameLength byte  as length of name
+// 	Name  []byte as ascii string
+// 	Notes [16]byte as bools
+// }
 
 func decodeTracks(input io.Reader, tracks *[]Track) error {
 	output := make([]Track, 0, initialTrackCapacity)
