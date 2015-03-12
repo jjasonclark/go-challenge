@@ -10,16 +10,8 @@ import (
 
 var FileError = errors.New("Input file is not a splice file")
 var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
-var binaryDecoders = []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
-var trackDataReaders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
 
 const InitialTrackCapacity = 10
-
-type spliceFileHeader struct {
-	Header [6]byte
-	_      uint32
-	Length uint32
-}
 
 type patternReadPartial func(io.Reader, *Pattern) error
 type trackReadPartial func(io.Reader, *Track) error
@@ -38,15 +30,19 @@ func DecodeFile(path string) (*Pattern, error) {
 }
 
 func Decode(input io.Reader) (*Pattern, error) {
-	header, err := decodeFileHeader(input)
+	reader, err := contentsReader(input)
 	if err != nil {
 		return nil, err
 	}
+	return decodeBinary(reader)
+}
 
-	limitedReader := io.LimitReader(input, int64(header.Length))
+func decodeBinary(input io.Reader) (*Pattern, error) {
 	var p Pattern
+	var err error
+	var binaryDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
 	for i := 0; i < len(binaryDecoders) && err == nil; i++ {
-		err = binaryDecoders[i](limitedReader, &p)
+		err = binaryDecoders[i](input, &p)
 	}
 	if err == nil || err == io.EOF {
 		return &p, nil
@@ -54,23 +50,23 @@ func Decode(input io.Reader) (*Pattern, error) {
 	return nil, err
 }
 
-func decodeFileHeader(input io.Reader) (*spliceFileHeader, error) {
-	var header spliceFileHeader
+func contentsReader(input io.Reader) (io.Reader, error) {
+	var header struct {
+		Marker [6]byte
+		_      uint32
+		Length uint32
+	}
 	if err := readValue(input, &header); err != nil {
 		return nil, FileError
 	}
-	if header.Header != spliceHeader {
+	if header.Marker != spliceHeader {
 		return nil, FileError
 	}
-	return &header, nil
+	limitReader := io.LimitReader(input, int64(header.Length))
+	return limitReader, nil
 }
 
-func convertFromZeroTerminatedString(str []byte) string {
-	//trim trailing 0s because string is zero terminated
-	return string(bytes.TrimRight(str, "\u0000"))
-}
-
-func decodeVersion(input io.Reader, pattern *Pattern) error {
+func readVersion(input io.Reader, pattern *Pattern) error {
 	var version [32]byte
 	if err := readValue(input, &version); err != nil {
 		return err
@@ -80,7 +76,7 @@ func decodeVersion(input io.Reader, pattern *Pattern) error {
 	return nil
 }
 
-func decodeTempo(input io.Reader, pattern *Pattern) error {
+func readTempo(input io.Reader, pattern *Pattern) error {
 	var tempo float32
 	if err := readValue(input, &tempo); err != nil {
 		return err
@@ -89,7 +85,7 @@ func decodeTempo(input io.Reader, pattern *Pattern) error {
 	return nil
 }
 
-func decodeTracks(input io.Reader, pattern *Pattern) error {
+func readTracks(input io.Reader, pattern *Pattern) error {
 	output := make([]Track, 0, InitialTrackCapacity)
 	var err error
 	for err == nil {
@@ -108,6 +104,7 @@ func decodeTracks(input io.Reader, pattern *Pattern) error {
 
 func readTrack(input io.Reader, track *Track) error {
 	var err error
+	var trackDataReaders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
 	for i := 0; i < len(trackDataReaders) && err == nil; i++ {
 		err = trackDataReaders[i](input, track)
 	}
@@ -115,10 +112,7 @@ func readTrack(input io.Reader, track *Track) error {
 }
 
 func readTrackId(input io.Reader, track *Track) error {
-	if err := readValue(input, &track.Id); err != nil {
-		return err
-	}
-	return nil
+	return readValue(input, &track.Id)
 }
 
 func readTrackName(input io.Reader, track *Track) error {
