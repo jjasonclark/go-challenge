@@ -32,11 +32,11 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = readData(io.LimitReader(input, int64(header.Length)), &p)
-	if err == nil || err == io.EOF {
-		return &p, nil
+	limitedReader := io.LimitReader(input, int64(header.Length))
+	if err := readData(limitedReader, &p); err != nil && err != io.EOF {
+		return nil, err
 	}
-	return nil, err
+	return &p, nil
 }
 
 func readData(input io.Reader, pattern *Pattern) error {
