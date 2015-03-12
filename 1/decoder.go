@@ -39,7 +39,7 @@ func Decode(input io.Reader) (*Pattern, error) {
 	for i := 0; i < len(patternDecoders) && err == nil; i++ {
 		err = patternDecoders[i](reader, &p)
 	}
-	if err == nil || err == io.EOF {
+	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
 		return &p, nil
 	}
 	return nil, err
@@ -81,7 +81,6 @@ func readTempo(input io.Reader, pattern *Pattern) error {
 }
 
 func readTracks(input io.Reader, pattern *Pattern) error {
-	output := make([]Track, 0, InitialTrackCapacity)
 	var err error
 	for err == nil {
 		var track Track
@@ -89,12 +88,8 @@ func readTracks(input io.Reader, pattern *Pattern) error {
 			err = trackDecoders[i](input, &track)
 		}
 		if err == nil {
-			output = append(output, track)
+			pattern.Tracks = append(pattern.Tracks, track)
 		}
-	}
-	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
-		pattern.Tracks = output
-		return nil
 	}
 	return err
 }
