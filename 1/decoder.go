@@ -32,21 +32,28 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := decodeTracks(input, &p, header.Length-36); err != nil {
-		return nil, err
+	err = readData(io.LimitReader(input, int64(header.Length)), &p)
+	if err == nil || err == io.EOF {
+		return &p, nil
 	}
-	p.Version = convertFromZeroTerminatedString(header.Version[:])
-	p.Tempo = float64(header.Tempo)
-	return &p, nil
+	return nil, err
+}
+
+func readData(input io.Reader, pattern *Pattern) error {
+	readers := []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
+	var err error
+	for i := 0; i < len(readers) && err == nil; i++ {
+		err = readers[i](input, pattern)
+	}
+	return err
 }
 
 var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
 
 type spliceFileHeader struct {
-	Header  [6]byte
-	Length  uint64
-	Version [32]byte
-	Tempo   float32
+	Header [6]byte
+	_      uint32
+	Length uint32
 }
 
 func decodeFileHeader(input io.Reader) (*spliceFileHeader, error) {
@@ -77,91 +84,83 @@ const (
 	trackStepsLength = 16
 )
 
-type foo func(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error)
-type trackReadPartial func(io.Reader, *Track) (uint64, error)
+type patternReadPartial func(input io.Reader, pattern *Pattern) error
+type trackReadPartial func(io.Reader, *Track) error
 
-func decodeVersion(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
+func decodeVersion(input io.Reader, pattern *Pattern) error {
 	var version [32]byte
 	if err := readValue(input, &version); err != nil {
-		return 0, err
+		return err
 	}
 	//trim trailing 0s because string is zero terminated
 	pattern.Version = string(bytes.TrimRight(version[:], "\u0000"))
-	return 32, nil
+	return nil
 }
 
-func decodeTempo(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
+func decodeTempo(input io.Reader, pattern *Pattern) error {
 	var tempo float32
 	if err := readValue(input, &tempo); err != nil {
-		return 0, err
+		return err
 	}
 	pattern.Tempo = float64(tempo)
-	return 4, nil
+	return nil
 }
 
-func decodeTracks(input io.Reader, pattern *Pattern, maxLength uint64) (uint64, error) {
+func decodeTracks(input io.Reader, pattern *Pattern) error {
 	output := make([]Track, 0, initialTrackCapacity)
 	var err error
-	var totalRead, bytesRead uint64
-	for err == nil && maxLength > 0 {
+	for err == nil {
 		var track Track
-		bytesRead, err = readTrack(input, &track, maxLength)
-		totalRead += bytesRead
-		maxLength -= bytesRead
+		err = readTrack(input, &track)
 		if err == nil {
 			output = append(output, track)
 		}
 	}
 	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
 		pattern.Tracks = output
-		return totalRead, nil
+		return nil
 	}
-	return totalRead, err
+	return err
 }
 
-func readTrack(input io.Reader, track *Track, maxLength uint64) (uint64, error) {
+func readTrack(input io.Reader, track *Track) error {
 	readers := []trackReadPartial{readId, readInstramentName, readSteps}
-	var totalRead, bytesRead uint64
 	var err error
 	for i := 0; i < len(readers) && err == nil; i++ {
-		if maxLength <= totalRead {
-			return totalRead, io.EOF
-		}
-		bytesRead, err = readers[i](input, track)
-		totalRead += bytesRead
+		err = readers[i](input, track)
 	}
-	return totalRead, err
+	return err
 }
 
-func readId(input io.Reader, track *Track) (uint64, error) {
+func readId(input io.Reader, track *Track) error {
 	if err := readValue(input, &track.Id); err != nil {
-		return 0, err
+		return err
 	}
-	return trackIdLength, nil
+	return nil
 }
 
-func readInstramentName(input io.Reader, track *Track) (uint64, error) {
+func readInstramentName(input io.Reader, track *Track) error {
 	var length byte
 	if err := readValue(input, &length); err != nil {
-		return 0, err
+		return err
 	}
 	nameBytes := make([]byte, length)
 	if err := readValue(input, &nameBytes); err != nil {
-		return 1, err
+		return err
 	}
 	track.Name = string(nameBytes[:])
-	return uint64(length + 1), nil
+	return nil
 }
 
-func readSteps(input io.Reader, track *Track) (uint64, error) {
+func readSteps(input io.Reader, track *Track) error {
 	var notes [16]byte
 	if err := readValue(input, &notes); err != nil {
-		return 0, err
+		return err
 	}
 	for i, note := range notes {
 		track.Steps[i] = note != 0
 	}
-	return trackStepsLength, nil
+	return nil
 }
 
 func readValue(input io.Reader, data interface{}) error {
