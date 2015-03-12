@@ -14,7 +14,7 @@ type patternReadPartial func(io.Reader, *Pattern) error
 type trackReadPartial func(io.Reader, *Track) error
 
 var FileError = errors.New("Input file is not a splice file")
-var binaryDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
+var patternDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
 var trackDecoders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
 
 // DecodeFile decodes the drum machine file found at the provided path
@@ -36,8 +36,8 @@ func Decode(input io.Reader) (*Pattern, error) {
 		return nil, err
 	}
 	var p Pattern
-	for i := 0; i < len(binaryDecoders) && err == nil; i++ {
-		err = binaryDecoders[i](reader, &p)
+	for i := 0; i < len(patternDecoders) && err == nil; i++ {
+		err = patternDecoders[i](reader, &p)
 	}
 	if err == nil || err == io.EOF {
 		return &p, nil
@@ -58,8 +58,7 @@ func contentsReader(input io.Reader) (io.Reader, error) {
 	if header.Marker != spliceHeader {
 		return nil, FileError
 	}
-	limitReader := io.LimitReader(input, int64(header.Length))
-	return limitReader, nil
+	return io.LimitReader(input, int64(header.Length)), nil
 }
 
 func readVersion(input io.Reader, pattern *Pattern) error {
