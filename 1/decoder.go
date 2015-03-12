@@ -9,7 +9,6 @@ import (
 )
 
 var FileError = errors.New("Input file is not a splice file")
-var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
 
 const InitialTrackCapacity = 10
 
@@ -59,6 +58,7 @@ func contentsReader(input io.Reader) (io.Reader, error) {
 	if err := readValue(input, &header); err != nil {
 		return nil, FileError
 	}
+	var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
 	if header.Marker != spliceHeader {
 		return nil, FileError
 	}
