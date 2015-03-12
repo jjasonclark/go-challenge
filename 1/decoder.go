@@ -9,8 +9,24 @@ import (
 )
 
 var FileError = errors.New("Input file is not a splice file")
+var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
+var trackDataReaders = []trackReadPartial{readId, readInstramentName, readSteps}
+var binaryDecoders = []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
 
-const initialTrackCapacity = 10
+const (
+	initialTrackCapacity = 10
+	trackIdLength        = 4
+	trackStepsLength     = 16
+)
+
+type spliceFileHeader struct {
+	Header [6]byte
+	_      uint32
+	Length uint32
+}
+
+type patternReadPartial func(io.Reader, *Pattern) error
+type trackReadPartial func(io.Reader, *Track) error
 
 // DecodeFile decodes the drum machine file found at the provided path
 // and returns a pointer to a parsed pattern which is the entry point to the
@@ -30,33 +46,16 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	limitedReader := io.LimitReader(input, int64(header.Length))
-	p, err := readData(limitedReader)
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
-}
 
-func readData(input io.Reader) (*Pattern, error) {
-	readers := []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
-	var err error
+	limitedReader := io.LimitReader(input, int64(header.Length))
 	var p Pattern
-	for i := 0; i < len(readers) && err == nil; i++ {
-		err = readers[i](input, &p)
+	for i := 0; i < len(binaryDecoders) && err == nil; i++ {
+		err = binaryDecoders[i](limitedReader, &p)
 	}
 	if err == nil || err == io.EOF {
 		return &p, nil
 	}
 	return nil, err
-}
-
-var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
-
-type spliceFileHeader struct {
-	Header [6]byte
-	_      uint32
-	Length uint32
 }
 
 func decodeFileHeader(input io.Reader) (*spliceFileHeader, error) {
@@ -74,21 +73,6 @@ func convertFromZeroTerminatedString(str []byte) string {
 	//trim trailing 0s because string is zero terminated
 	return string(bytes.TrimRight(str, "\u0000"))
 }
-
-// type spliceFileStep struct {
-// 	Id    uint32
-//  NameLength byte  as length of name
-// 	Name  []byte as ascii string
-// 	Notes [16]byte as bools
-// }
-
-const (
-	trackIdLength    = 4
-	trackStepsLength = 16
-)
-
-type patternReadPartial func(input io.Reader, pattern *Pattern) error
-type trackReadPartial func(io.Reader, *Track) error
 
 func decodeVersion(input io.Reader, pattern *Pattern) error {
 	var version [32]byte
@@ -127,10 +111,9 @@ func decodeTracks(input io.Reader, pattern *Pattern) error {
 }
 
 func readTrack(input io.Reader, track *Track) error {
-	readers := []trackReadPartial{readId, readInstramentName, readSteps}
 	var err error
-	for i := 0; i < len(readers) && err == nil; i++ {
-		err = readers[i](input, track)
+	for i := 0; i < len(trackDataReaders) && err == nil; i++ {
+		err = trackDataReaders[i](input, track)
 	}
 	return err
 }
