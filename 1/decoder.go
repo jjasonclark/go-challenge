@@ -32,11 +32,11 @@ func Decode(input io.Reader) (*Pattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.Version = convertFromZeroTerminatedString(header.Version[:])
-	p.Tempo = float64(header.Tempo)
 	if err := decodeTracks(input, &p, header.Length-34); err != nil {
 		return nil, err
 	}
+	p.Version = convertFromZeroTerminatedString(header.Version[:])
+	p.Tempo = float64(header.Tempo)
 	return &p, nil
 }
 
