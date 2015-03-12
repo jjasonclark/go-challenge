@@ -47,6 +47,12 @@ type spliceFileHeader struct {
 	Tempo   float32
 }
 
+// type spliceFileStep struct {
+// 	Id    uint32
+// 	Name  []byte
+// 	Notes [16]byte
+// }
+
 func decodeHeader(input io.Reader, p *Pattern) error {
 	var header spliceFileHeader
 	if err := binary.Read(input, binary.LittleEndian, &header); err != nil {
@@ -65,12 +71,6 @@ func zeroTerminatedString(str []byte) string {
 	return string(bytes.TrimRight(str, "\u0000"))
 }
 
-type spliceFileStep struct {
-	Id    uint32
-	Name  []byte
-	Notes [16]byte
-}
-
 func decodeTracks(input io.Reader, tracks *[]Track) error {
 	output := make([]Track, 0, initialTrackCapacity)
 	var err error
@@ -82,13 +82,8 @@ func decodeTracks(input io.Reader, tracks *[]Track) error {
 		if err = decodeInstramentName(input, &track.name); err != nil {
 			continue
 		}
-		var notes [16]byte
-		if err = binary.Read(input, binary.LittleEndian, &notes); err != nil {
+		if err = decodeNotes(input, &track.steps); err != nil {
 			continue
-		}
-
-		for i, note := range notes {
-			track.steps[i] = note != 0
 		}
 		output = append(output, track)
 	}
@@ -109,5 +104,16 @@ func decodeInstramentName(input io.Reader, name *string) error {
 		return err
 	}
 	*name = string(nameBytes[:])
+	return nil
+}
+
+func decodeNotes(input io.Reader, steps *[16]bool) error {
+	var notes [16]byte
+	if err := binary.Read(input, binary.LittleEndian, &notes); err != nil {
+		return err
+	}
+	for i, note := range notes {
+		steps[i] = note != 0
+	}
 	return nil
 }
