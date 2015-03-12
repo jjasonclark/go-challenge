@@ -32,9 +32,9 @@ func (pattern Pattern) versionString() string {
 }
 
 func (pattern Pattern) tempoString() string {
-	numberFormat := "%f"
+	numberFormat := "%.1f"
 	if isWholeNumber(pattern.tempo) {
-		numberFormat = "%0.0f"
+		numberFormat = "%.0f"
 	}
 	return fmt.Sprintf(tempoHeader+numberFormat, pattern.tempo)
 }
