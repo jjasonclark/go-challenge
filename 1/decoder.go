@@ -5,16 +5,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"math"
 	"os"
 	"strings"
 )
 
 const (
-	errorHeader  = "Input file is not a splice file"
-	errorVersion = "There is an error reading the version identifier"
-	errorTempo   = "There is an error reading the tempo value"
-	errorTrack   = "There is an error reading the track data"
+	errorHeader = "Input file is not a splice file"
+	errorTrack  = "There is an error reading the track data"
 )
 
 // DecodeFile decodes the drum machine file found at the provided path
@@ -50,16 +47,6 @@ type spliceFileHeader struct {
 	Tempo   float32
 }
 
-type spliceFileStep struct {
-	Name  [12]byte
-	Notes [16]byte
-}
-
-type spliceFile struct {
-	header spliceFileHeader
-	body   []spliceFileStep
-}
-
 func decodeHeader(input io.Reader, p *Pattern) error {
 	var header spliceFileHeader
 	if err := binary.Read(input, binary.LittleEndian, &header); err != nil {
@@ -69,7 +56,7 @@ func decodeHeader(input io.Reader, p *Pattern) error {
 		return errors.New(errorHeader)
 	}
 	p.version = zeroTerminatedString(header.Version[:])
-	p.tempo = roundOff(header.Tempo)
+	p.tempo = float64(header.Tempo)
 	return nil
 }
 
@@ -78,23 +65,41 @@ func zeroTerminatedString(str []byte) string {
 	return strings.TrimRight(string(str), "\u0000")
 }
 
-func roundOff(num float32) float64 {
-	shift := float64(100.0)
-	return math.Floor((float64(num)*shift)+0.5) / shift
+type spliceFileStep struct {
+	Id         uint32
+	NameLength byte
+	Name       []byte
+	Notes      [16]byte
 }
 
 func decodeTracks(input io.Reader, tracks *[]Track) error {
-	// id: 1 byte
-	// name length: 2 bytes
-	// name: name length in bytes
-	// steps: 8 bytes
-	*tracks = []Track{
-		{id: 0, name: "kick", steps: [16]bool{true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false}},
-		{id: 1, name: "snare", steps: [16]bool{false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false}},
-		{id: 2, name: "clap", steps: [16]bool{false, false, false, false, true, false, true, false, false, false, false, false, false, false, false, false}},
-		{id: 3, name: "hh-open", steps: [16]bool{false, false, true, false, false, false, true, false, true, false, true, false, false, false, true, false}},
-		{id: 4, name: "hh-close", steps: [16]bool{true, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true}},
-		{id: 5, name: "cowbell", steps: [16]bool{false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false}},
+	output := make([]Track, 0, 10) // TODO: are these the right values?
+	var err error
+	for err == nil {
+		var step spliceFileStep
+		if err = binary.Read(input, binary.LittleEndian, &step.Id); err != nil {
+			continue
+		}
+		if err = binary.Read(input, binary.LittleEndian, &step.NameLength); err != nil {
+			continue
+		}
+		step.Name = make([]byte, step.NameLength)
+		if err = binary.Read(input, binary.LittleEndian, step.Name); err != nil {
+			continue
+		}
+		if err = binary.Read(input, binary.LittleEndian, &step.Notes); err != nil {
+			continue
+		}
+
+		nextTrack := Track{id: step.Id, name: string(step.Name[:])}
+		for i, note := range step.Notes {
+			nextTrack.steps[i] = note != 0
+		}
+		output = append(output, nextTrack)
 	}
-	return nil
+	if err == io.EOF || err == io.ErrUnexpectedEOF {
+		*tracks = output
+		return nil
+	}
+	return err
 }
