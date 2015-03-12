@@ -8,11 +8,9 @@ import (
 	"os"
 )
 
-const (
-	errorHeader          = "Input file is not a splice file"
-	errorTrack           = "There is an error reading the track data"
-	initialTrackCapacity = 10
-)
+var FileError = errors.New("Input file is not a splice file")
+
+const initialTrackCapacity = 10
 
 // DecodeFile decodes the drum machine file found at the provided path
 // and returns a pointer to a parsed pattern which is the entry point to the
@@ -56,10 +54,10 @@ type spliceFileHeader struct {
 func decodeHeader(input io.Reader, p *Pattern) error {
 	var header spliceFileHeader
 	if err := readValue(input, &header); err != nil {
-		return errors.New(errorHeader)
+		return FileError
 	}
 	if header.Header != spliceHeader {
-		return errors.New(errorHeader)
+		return FileError
 	}
 	p.version = zeroTerminatedString(header.Version[:])
 	p.tempo = float64(header.Tempo)
