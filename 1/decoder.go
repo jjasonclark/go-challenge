@@ -84,12 +84,12 @@ func readTracks(input io.Reader, pattern *Pattern) error {
 	var err error
 	for err == nil {
 		var track Track
-		for i := 0; i < len(trackDecoders) && err == nil; i++ {
-			err = trackDecoders[i](input, &track)
+		for _, decoder := range trackDecoders {
+			if err = decoder(input, &track); err != nil {
+				return err
+			}
 		}
-		if err == nil {
-			pattern.Tracks = append(pattern.Tracks, track)
-		}
+		pattern.Tracks = append(pattern.Tracks, track)
 	}
 	return err
 }
