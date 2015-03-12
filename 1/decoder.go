@@ -10,14 +10,10 @@ import (
 
 var FileError = errors.New("Input file is not a splice file")
 var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
-var trackDataReaders = []trackReadPartial{readId, readInstramentName, readSteps}
 var binaryDecoders = []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
+var trackDataReaders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
 
-const (
-	initialTrackCapacity = 10
-	trackIdLength        = 4
-	trackStepsLength     = 16
-)
+const InitialTrackCapacity = 10
 
 type spliceFileHeader struct {
 	Header [6]byte
@@ -94,7 +90,7 @@ func decodeTempo(input io.Reader, pattern *Pattern) error {
 }
 
 func decodeTracks(input io.Reader, pattern *Pattern) error {
-	output := make([]Track, 0, initialTrackCapacity)
+	output := make([]Track, 0, InitialTrackCapacity)
 	var err error
 	for err == nil {
 		var track Track
@@ -118,14 +114,14 @@ func readTrack(input io.Reader, track *Track) error {
 	return err
 }
 
-func readId(input io.Reader, track *Track) error {
+func readTrackId(input io.Reader, track *Track) error {
 	if err := readValue(input, &track.Id); err != nil {
 		return err
 	}
 	return nil
 }
 
-func readInstramentName(input io.Reader, track *Track) error {
+func readTrackName(input io.Reader, track *Track) error {
 	var length byte
 	if err := readValue(input, &length); err != nil {
 		return err
@@ -138,7 +134,7 @@ func readInstramentName(input io.Reader, track *Track) error {
 	return nil
 }
 
-func readSteps(input io.Reader, track *Track) error {
+func readTrackSteps(input io.Reader, track *Track) error {
 	var notes [16]byte
 	if err := readValue(input, &notes); err != nil {
 		return err
