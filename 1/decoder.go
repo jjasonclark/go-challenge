@@ -6,12 +6,12 @@ import (
 	"errors"
 	"io"
 	"os"
-	"strings"
 )
 
 const (
-	errorHeader = "Input file is not a splice file"
-	errorTrack  = "There is an error reading the track data"
+	errorHeader          = "Input file is not a splice file"
+	errorTrack           = "There is an error reading the track data"
+	initialTrackCapacity = 10
 )
 
 // DecodeFile decodes the drum machine file found at the provided path
@@ -38,7 +38,7 @@ func DecodeFile(path string) (*Pattern, error) {
 	return &pat, nil
 }
 
-var spliceHeader = []byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
+var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
 
 type spliceFileHeader struct {
 	Header  [6]byte
@@ -52,7 +52,7 @@ func decodeHeader(input io.Reader, p *Pattern) error {
 	if err := binary.Read(input, binary.LittleEndian, &header); err != nil {
 		return errors.New(errorHeader)
 	}
-	if !bytes.Equal(header.Header[:], spliceHeader) {
+	if header.Header != spliceHeader {
 		return errors.New(errorHeader)
 	}
 	p.version = zeroTerminatedString(header.Version[:])
@@ -62,44 +62,52 @@ func decodeHeader(input io.Reader, p *Pattern) error {
 
 func zeroTerminatedString(str []byte) string {
 	//trim trailing 0s because string is zero terminated
-	return strings.TrimRight(string(str), "\u0000")
+	return string(bytes.TrimRight(str, "\u0000"))
 }
 
 type spliceFileStep struct {
-	Id         uint32
-	NameLength byte
-	Name       []byte
-	Notes      [16]byte
+	Id    uint32
+	Name  []byte
+	Notes [16]byte
 }
 
 func decodeTracks(input io.Reader, tracks *[]Track) error {
-	output := make([]Track, 0, 10) // TODO: are these the right values?
+	output := make([]Track, 0, initialTrackCapacity)
 	var err error
 	for err == nil {
-		var step spliceFileStep
-		if err = binary.Read(input, binary.LittleEndian, &step.Id); err != nil {
+		var track Track
+		if err = binary.Read(input, binary.LittleEndian, &track.id); err != nil {
 			continue
 		}
-		if err = binary.Read(input, binary.LittleEndian, &step.NameLength); err != nil {
+		if err = decodeInstramentName(input, &track.name); err != nil {
 			continue
 		}
-		step.Name = make([]byte, step.NameLength)
-		if err = binary.Read(input, binary.LittleEndian, step.Name); err != nil {
-			continue
-		}
-		if err = binary.Read(input, binary.LittleEndian, &step.Notes); err != nil {
+		var notes [16]byte
+		if err = binary.Read(input, binary.LittleEndian, &notes); err != nil {
 			continue
 		}
 
-		nextTrack := Track{id: step.Id, name: string(step.Name[:])}
-		for i, note := range step.Notes {
-			nextTrack.steps[i] = note != 0
+		for i, note := range notes {
+			track.steps[i] = note != 0
 		}
-		output = append(output, nextTrack)
+		output = append(output, track)
 	}
 	if err == io.EOF || err == io.ErrUnexpectedEOF {
 		*tracks = output
 		return nil
 	}
 	return err
+}
+
+func decodeInstramentName(input io.Reader, name *string) error {
+	var length byte
+	if err := binary.Read(input, binary.LittleEndian, &length); err != nil {
+		return err
+	}
+	nameBytes := make([]byte, length)
+	if err := binary.Read(input, binary.LittleEndian, nameBytes); err != nil {
+		return err
+	}
+	*name = string(nameBytes[:])
+	return nil
 }
