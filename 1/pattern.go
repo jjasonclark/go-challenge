@@ -15,9 +15,9 @@ const (
 // drum pattern contained in a .splice file.
 // TODO: implement
 type Pattern struct {
-	version string
-	tempo   float64
-	tracks  []Track
+	Version string
+	Tempo   float64
+	Tracks  []Track
 }
 
 func (pattern Pattern) String() string {
@@ -28,15 +28,15 @@ func (pattern Pattern) String() string {
 }
 
 func (pattern Pattern) versionString() string {
-	return versionHeader + pattern.version
+	return versionHeader + pattern.Version
 }
 
 func (pattern Pattern) tempoString() string {
 	numberFormat := "%.1f"
-	if isWholeNumber(pattern.tempo) {
+	if isWholeNumber(pattern.Tempo) {
 		numberFormat = "%.0f"
 	}
-	return fmt.Sprintf(tempoHeader+numberFormat, pattern.tempo)
+	return fmt.Sprintf(tempoHeader+numberFormat, pattern.Tempo)
 }
 
 func isWholeNumber(number float64) bool {
@@ -44,8 +44,8 @@ func isWholeNumber(number float64) bool {
 }
 
 func (pattern Pattern) trackStrings() []string {
-	trackLines := make([]string, len(pattern.tracks))
-	for i, track := range pattern.tracks {
+	trackLines := make([]string, len(pattern.Tracks))
+	for i, track := range pattern.Tracks {
 		trackLines[i] = track.String()
 	}
 	return trackLines

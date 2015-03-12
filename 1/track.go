@@ -7,13 +7,13 @@ import (
 const stepOutputFormat = "|----|----|----|----|"
 
 type Track struct {
-	id    uint32
-	name  string
-	steps [16]bool
+	Id    uint32
+	Name  string
+	Steps [16]bool
 }
 
 func (track Track) String() string {
-	return fmt.Sprintf("(%d) %s\t%s", track.id, track.name, track.stepString())
+	return fmt.Sprintf("(%d) %s\t%s", track.Id, track.Name, track.stepString())
 }
 
 func (track Track) stepString() string {
@@ -22,7 +22,7 @@ func (track Track) stepString() string {
 
 	for i, char := range outputLine {
 		if char == '-' { // is this an output spot?
-			if track.steps[stepIndex] {
+			if track.Steps[stepIndex] {
 				outputLine[i] = 'x'
 			}
 			stepIndex += 1
