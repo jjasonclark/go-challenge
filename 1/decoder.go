@@ -26,26 +26,29 @@ func DecodeFile(path string) (*Pattern, error) {
 }
 
 func Decode(input io.Reader) (*Pattern, error) {
-	var p Pattern
-
 	header, err := decodeFileHeader(input)
 	if err != nil {
 		return nil, err
 	}
 	limitedReader := io.LimitReader(input, int64(header.Length))
-	if err := readData(limitedReader, &p); err != nil && err != io.EOF {
+	p, err := readData(limitedReader)
+	if err != nil {
 		return nil, err
 	}
-	return &p, nil
+	return p, nil
 }
 
-func readData(input io.Reader, pattern *Pattern) error {
+func readData(input io.Reader) (*Pattern, error) {
 	readers := []patternReadPartial{decodeVersion, decodeTempo, decodeTracks}
 	var err error
+	var p Pattern
 	for i := 0; i < len(readers) && err == nil; i++ {
-		err = readers[i](input, pattern)
+		err = readers[i](input, &p)
 	}
-	return err
+	if err == nil || err == io.EOF {
+		return &p, nil
+	}
+	return nil, err
 }
 
 var spliceHeader = [6]byte{0x53, 0x50, 0x4c, 0x49, 0x43, 0x45} // SPLICE as bytes
