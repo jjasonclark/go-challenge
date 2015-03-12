@@ -47,8 +47,9 @@ type spliceFileHeader struct {
 
 // type spliceFileStep struct {
 // 	Id    uint32
-// 	Name  []byte
-// 	Notes [16]byte
+//  NameLength byte  as length of name
+// 	Name  []byte as ascii string
+// 	Notes [16]byte as bools
 // }
 
 func decodeHeader(input io.Reader, p *Pattern) error {
