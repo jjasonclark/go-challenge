@@ -8,12 +8,14 @@ import (
 	"os"
 )
 
-var FileError = errors.New("Input file is not a splice file")
-
 const InitialTrackCapacity = 10
 
 type patternReadPartial func(io.Reader, *Pattern) error
 type trackReadPartial func(io.Reader, *Track) error
+
+var FileError = errors.New("Input file is not a splice file")
+var binaryDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
+var trackDecoders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
 
 // DecodeFile decodes the drum machine file found at the provided path
 // and returns a pointer to a parsed pattern which is the entry point to the
@@ -34,7 +36,6 @@ func Decode(input io.Reader) (*Pattern, error) {
 		return nil, err
 	}
 	var p Pattern
-	var binaryDecoders = []patternReadPartial{readVersion, readTempo, readTracks}
 	for i := 0; i < len(binaryDecoders) && err == nil; i++ {
 		err = binaryDecoders[i](reader, &p)
 	}
@@ -85,7 +86,9 @@ func readTracks(input io.Reader, pattern *Pattern) error {
 	var err error
 	for err == nil {
 		var track Track
-		err = readTrack(input, &track)
+		for i := 0; i < len(trackDecoders) && err == nil; i++ {
+			err = trackDecoders[i](input, &track)
+		}
 		if err == nil {
 			output = append(output, track)
 		}
@@ -93,15 +96,6 @@ func readTracks(input io.Reader, pattern *Pattern) error {
 	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
 		pattern.Tracks = output
 		return nil
-	}
-	return err
-}
-
-func readTrack(input io.Reader, track *Track) error {
-	var err error
-	var trackDecoders = []trackReadPartial{readTrackId, readTrackName, readTrackSteps}
-	for i := 0; i < len(trackDecoders) && err == nil; i++ {
-		err = trackDecoders[i](input, track)
 	}
 	return err
 }
