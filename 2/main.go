@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 // NewSecureReader instantiates a new SecureReader
@@ -38,14 +41,26 @@ func Serve(l net.Listener) error {
 	return nil
 }
 
+func serverHandshake(conn net.Conn) (net.Conn, error) {
+	pk, _, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return conn, err
+	}
+	_, err = conn.Write(pk[:])
+	return conn, err
+}
+
 var config = struct {
 	BufferSize uint64
 }{
-	BufferSize: 1024 * 32,
+	BufferSize: 1024 * 32, // 32kb
 }
 
 func echoConnection(conn net.Conn) {
 	defer conn.Close()
+	if _, err := serverHandshake(conn); err != nil {
+		return
+	}
 	buf := make([]byte, config.BufferSize)
 	for {
 		r, err := conn.Read(buf)
