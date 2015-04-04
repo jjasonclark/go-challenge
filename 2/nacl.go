@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 
@@ -16,8 +15,8 @@ type NaclReadWriteCloser struct {
 	backer io.ReadWriteCloser
 }
 
-var SecureKeyExchangeError = errors.New("Could not exhange keys")
-var SecureEncryptionError = errors.New("Could not generate encryption keys")
+var NaclKeyExchangeError = errors.New("Could not exhange keys")
+var NaclEncryptionError = errors.New("Could not generate encryption keys")
 
 func (s *NaclReadWriteCloser) Read(p []byte) (n int, err error) {
 	return s.Reader.Read(p)
@@ -34,27 +33,25 @@ func (s *NaclReadWriteCloser) Close() error {
 func serverHandshake(conn net.Conn) (io.ReadWriteCloser, error) {
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, SecureEncryptionError
+		return nil, NaclEncryptionError
 	}
 
 	// Send public key
 	if _, err = conn.Write(pub[:]); err != nil {
-		return nil, SecureKeyExchangeError
+		return nil, NaclKeyExchangeError
 	}
-	fmt.Println("Wrote a public key")
 
 	// Read othe side's public key
 	var otherPub [32]byte
 	var c int
 	c, err = conn.Read(otherPub[:])
 	if c < 32 || err != nil {
-		return nil, SecureKeyExchangeError
+		return nil, NaclKeyExchangeError
 	}
-	fmt.Println("Read a public key")
 
 	// Return created reader and writer
 	return &NaclReadWriteCloser{
 		Reader: NewSecureReader(conn, priv, &otherPub),
-		Writer: NewSecureWriter(conn, priv, pub),
+		Writer: NewSecureWriter(conn, priv, &otherPub),
 	}, nil
 }

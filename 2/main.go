@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 	"log"
 	"net"
@@ -11,6 +12,12 @@ import (
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
+
+	in := []byte("hello, world!")
+	var out [config.BufferSize]byte
+	var nonce [24]byte
+	nonce = rand.Reader.Read(nonce[:])
+	overhead, err := box.Open(out[:], in[:], &nonce, pub, priv)
 	return r
 }
 
