@@ -1,22 +1,13 @@
 package main
 
 import (
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
-
-	"golang.org/x/crypto/nacl/box"
 )
-
-type secureConn struct {
-	conn       net.Conn
-	PublicKey  *[32]byte
-	privateKey *[32]byte
-}
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
@@ -32,7 +23,11 @@ func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
 // connects to the server, perform the handshake
 // and return a reader/writer.
 func Dial(addr string) (io.ReadWriteCloser, error) {
-	return net.Dial("tcp", addr)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	return serverHandshake(conn)
 }
 
 // Serve starts a secure echo server on the given listener.
@@ -45,27 +40,6 @@ func Serve(l net.Listener) error {
 		go echoConnection(conn)
 	}
 	return nil
-}
-
-func wrapConn(conn net.Conn) (*secureConn, error) {
-	sc := &secureConn{conn: conn}
-	pk, sk, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		return sc, err
-	}
-	sc.PublicKey = pk
-	sc.privateKey = sk
-	return sc, nil
-}
-
-func serverHandshake(conn net.Conn) (*secureConn, error) {
-	sc, err := wrapConn(conn)
-
-	if err != nil {
-		return sc, err
-	}
-	_, err = conn.Write(sc.privateKey[:])
-	return sc, err
 }
 
 var config = struct {
@@ -82,13 +56,13 @@ func echoConnection(conn net.Conn) {
 	}
 	buf := make([]byte, config.BufferSize)
 	for {
-		r, err := sc.conn.Read(buf)
+		r, err := sc.Read(buf)
 		if err != nil {
 			return
 		}
 		fmt.Println(string(buf))
 		for w := 0; r > w; {
-			c, err := sc.conn.Write(buf[w:r])
+			c, err := sc.Write(buf[w:r])
 			if err != nil {
 				break
 			}
