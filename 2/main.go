@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 	"log"
 	"net"
@@ -21,10 +22,7 @@ func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	writer := secureWriter{
-		backer:    w,
-		encrypted: make([]byte, config.BufferSize),
-	}
+	writer := secureWriter{backer: w}
 	box.Precompute(&writer.sharedKey, pub, priv)
 	return writer
 }
@@ -67,10 +65,11 @@ func echoConnection(conn net.Conn) {
 	buf := make([]byte, config.BufferSize)
 	for {
 		r, err := sc.Read(buf)
+		fmt.Printf("Jason: read server for %d bytes\n", r)
 		if err != nil {
 			return
 		}
-		fmt.Println(string(buf))
+		fmt.Println(string(buf[:r]))
 		for w := 0; r > w; {
 			c, err := sc.Write(buf[w:r])
 			if err != nil {

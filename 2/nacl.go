@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 
@@ -36,7 +37,7 @@ type secureReader struct {
 	decrypted []byte
 }
 
-func (s *secureReader) Read(p []byte) (n int, err error) {
+func (s secureReader) Read(p []byte) (int, error) {
 	read := copy(p, s.decrypted)
 	for ; read < len(p); read += copy(p[read:], s.decrypted) {
 		// Read message from underlying Reader
@@ -59,9 +60,11 @@ func (s *secureReader) Read(p []byte) (n int, err error) {
 		var success bool
 		decrypted, success = box.OpenAfterPrecomputation(s.decrypted, message[:c], &nonce, &s.sharedKey)
 		if !success {
+			fmt.Printf("Jason: failed to read %d bytes\n", len(decrypted))
 			// what does this mean?
 			return read, nil
 		}
+		fmt.Printf("Jason: read %d bytes\n", len(decrypted))
 		s.decrypted = decrypted
 	}
 	return read, nil
@@ -69,11 +72,11 @@ func (s *secureReader) Read(p []byte) (n int, err error) {
 
 type secureWriter struct {
 	backer    io.Writer
-	encrypted []byte
 	sharedKey [32]byte
 }
 
-func (s *secureWriter) Write(p []byte) (n int, err error) {
+func (s secureWriter) Write(p []byte) (n int, err error) {
+	// write to p what I have
 	// seal message
 	// write to p all that I have
 	// save remaining for later
@@ -85,19 +88,19 @@ func (s *secureWriter) Write(p []byte) (n int, err error) {
 		// todo: better error
 		return 0, err
 	}
+	var encrypted []byte
 
-	encrypted := box.SealAfterPrecomputation(s.encrypted, p, &nonce, &s.sharedKey)
+	encrypted = box.SealAfterPrecomputation(encrypted, p, &nonce, &s.sharedKey)
 
 	var wrote int
 	for wrote < len(encrypted) {
 		c, err := s.backer.Write(encrypted)
 		wrote += c
-		s.encrypted = s.encrypted[c:]
+		encrypted = encrypted[c:]
 		if err != nil {
 			return wrote, err
 		}
 	}
-	s.encrypted = s.encrypted[0:0]
 	return wrote, nil
 }
 
@@ -124,6 +127,6 @@ func serverHandshake(conn net.Conn) (io.ReadWriteCloser, error) {
 	return &NaclReadWriteCloser{
 		backer: conn,
 		Reader: NewSecureReader(conn, priv, &otherPub),
-		Writer: NewSecureWriter(conn, priv, &otherPub),
+		Writer: NewSecureWriter(conn, priv, pub),
 	}, nil
 }
