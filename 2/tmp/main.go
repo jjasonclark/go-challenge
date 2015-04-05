@@ -20,34 +20,29 @@ func blah() (int, error) {
 		return 0, err
 	}
 
-	var nonceRead [24]byte
-	_, err = rand.Read(nonceRead[:])
+	var nonce [24]byte
+	_, err = rand.Read(nonce[:])
 	if err != nil {
 		// todo: better error
 		return 0, err
 	}
 
-	var nonceWrite [24]byte
-	_, err = rand.Read(nonceWrite[:])
-	if err != nil {
-		// todo: better error
-		return 0, err
-	}
+	var readKey [32]byte
+	var writeKey [32]byte
+	box.Precompute(&writeKey, pub2, priv1)
+	box.Precompute(&readKey, pub1, priv2)
 
-	// var sharedKey [32]byte
-	// box.Precompute(&sharedKey, pub2, priv1)
+	var encrypted_back, decrypted_back [2048]byte
+	decrypted := decrypted_back[:0]
+	encrypted := encrypted_back[:0]
 
-	var decrypted []byte
-	// var encrypted_back [2048]byte
-	var encrypted []byte
-	message := []byte("hello, world!12345678901234567890123456789012345678901234567890")
-	fmt.Printf("pointers %v %v %v %v\n", pub1, priv1, pub2, priv2)
+	message := []byte("hello, world!1234567890123456789012345678901234567890123456789012345")
 
-	fmt.Printf("Message is %d bytes\n", len(message))
-	encrypted = box.Seal(nil, message[:], &nonceRead, pub2, priv1)
+	fmt.Printf("Message is %d bytes: %s\n", len(message), string(message))
+	encrypted = box.SealAfterPrecomputation(encrypted, message[:], &nonce, &writeKey)
 	fmt.Printf("encrypted is %d bytes\n", len(encrypted))
 
-	decrypted, _ = box.Open(nil, encrypted, &nonceRead, pub1, priv2)
+	decrypted, _ = box.OpenAfterPrecomputation(decrypted, encrypted, &nonce, &readKey)
 	fmt.Printf("Decrypted is %d bytes: %s\n", len(decrypted), string(decrypted))
 
 	return 0, nil
