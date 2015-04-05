@@ -10,14 +10,24 @@ import (
 	"os"
 )
 
+type secureReader struct {
+	backer   io.Reader
+	Reader   bufio.Reader
+	Overhead []byte
+}
+
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
-
+	reader := secureReader{
+		Reader:   bufio.NewReaderSize(r, config.BufferSize),
+		Overhead: make([]byte, 1024),
+	}
 	in := []byte("hello, world!")
 	var out [config.BufferSize]byte
 	var nonce [24]byte
 	nonce = rand.Reader.Read(nonce[:])
-	overhead, err := box.Open(out[:], in[:], &nonce, pub, priv)
+	var err error
+	reader.Overhead, err = box.Open(out[:], in[:], &nonce, pub, priv)
 	return r
 }
 
