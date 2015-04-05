@@ -3,37 +3,30 @@ package main
 import (
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/nacl/box"
 	"io"
 	"log"
 	"net"
 	"os"
 )
 
-type secureReader struct {
-	backer   io.Reader
-	Reader   bufio.Reader
-	Overhead []byte
-}
-
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	reader := secureReader{
-		Reader:   bufio.NewReaderSize(r, config.BufferSize),
-		Overhead: make([]byte, 1024),
+		backer:    r,
+		decrypted: make([]byte, config.BufferSize),
 	}
-	in := []byte("hello, world!")
-	var out [config.BufferSize]byte
-	var nonce [24]byte
-	nonce = rand.Reader.Read(nonce[:])
-	var err error
-	reader.Overhead, err = box.Open(out[:], in[:], &nonce, pub, priv)
-	return r
+	box.Precompute(&reader.sharedKey, pub, priv)
+	return reader
 }
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	return w
+	writer := secureWriter{
+		backer:    w,
+		encrypted: make([]byte, config.BufferSize),
+	}
+	box.Precompute(&writer.sharedKey, pub, priv)
+	return writer
 }
 
 // Dial generates a private/public key pair,
