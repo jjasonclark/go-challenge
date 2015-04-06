@@ -23,8 +23,7 @@ func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
 	writer := secureWriter{
-		backer:    w,
-		encrypted: make([]byte, config.BufferSize)[:0],
+		backer: w,
 	}
 	box.Precompute(&writer.sharedKey, pub, priv)
 	return writer
