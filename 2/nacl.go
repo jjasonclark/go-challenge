@@ -40,18 +40,24 @@ type secureReader struct {
 func (s secureReader) Read(p []byte) (int, error) {
 	read := copy(p, s.decrypted)
 	for ; read < len(p); read += copy(p[read:], s.decrypted) {
-		// Read message from underlying Reader
-		message := make([]byte, config.BufferSize)
+		// Read nonce
+		var nonce [24]byte
+		var err error
+		_, err = io.ReadFull(s.backer, nonce[:])
+		if err != nil {
+			return read, err
+		}
+
+		nonce := make([]byte, config.BufferSize)
 		c, err := s.backer.Read(message[:])
 		if err != nil {
 			return read, err
 		}
 
-		// create random nonce
-		var nonce [24]byte
-		_, err = rand.Read(nonce[:])
+		// Read message from underlying Reader
+		message := make([]byte, config.BufferSize)
+		c, err := s.backer.Read(message[:])
 		if err != nil {
-			//what does this mean?
 			return read, err
 		}
 
@@ -73,6 +79,7 @@ func (s secureReader) Read(p []byte) (int, error) {
 type secureWriter struct {
 	backer    io.Writer
 	sharedKey [32]byte
+	encrypted []byte
 }
 
 func (s secureWriter) Write(p []byte) (n int, err error) {

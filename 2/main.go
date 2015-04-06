@@ -14,7 +14,7 @@ import (
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	reader := secureReader{
 		backer:    r,
-		decrypted: make([]byte, config.BufferSize),
+		decrypted: make([]byte, config.BufferSize)[:0],
 	}
 	box.Precompute(&reader.sharedKey, pub, priv)
 	return reader
@@ -22,7 +22,10 @@ func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	writer := secureWriter{backer: w}
+	writer := secureWriter{
+		backer:    w,
+		encrypted: make([]byte, config.BufferSize)[:0],
+	}
 	box.Precompute(&writer.sharedKey, pub, priv)
 	return writer
 }
@@ -40,12 +43,25 @@ func Dial(addr string) (io.ReadWriteCloser, error) {
 
 // Serve starts a secure echo server on the given listener.
 func Serve(l net.Listener) error {
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			return err
-		}
-		go echoConnection(conn)
+	conn, err := l.Accept()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	sc, err := serverHandshake(conn)
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, config.BufferSize)
+	r, err := sc.Read(buf)
+	fmt.Printf("Jason: read server for %d bytes\n", r)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(buf[:r]))
+	_, err = sc.Write(buf[:r])
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -54,30 +70,6 @@ var config = struct {
 	BufferSize uint64
 }{
 	BufferSize: 1024 * 32, // 32kb
-}
-
-func echoConnection(conn net.Conn) {
-	defer conn.Close()
-	sc, err := serverHandshake(conn)
-	if err != nil {
-		return
-	}
-	buf := make([]byte, config.BufferSize)
-	for {
-		r, err := sc.Read(buf)
-		fmt.Printf("Jason: read server for %d bytes\n", r)
-		if err != nil {
-			return
-		}
-		fmt.Println(string(buf[:r]))
-		for w := 0; r > w; {
-			c, err := sc.Write(buf[w:r])
-			if err != nil {
-				break
-			}
-			w += c
-		}
-	}
 }
 
 func main() {
