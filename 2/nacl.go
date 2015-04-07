@@ -9,11 +9,17 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
-var ErrKeyExchange = errors.New("Could not exhange keys")
+var config = struct {
+	BufferSize int
+}{
+	BufferSize: 1024 * 32, // 32kb
+}
+
+var ErrKeyExchange = errors.New("Could not exhange public keys")
 var ErrEncryption = errors.New("Could not generate encryption keys")
+var ErrDecryption = errors.New("Could not decrypt received message")
 var ErrNonceWrite = errors.New("Could not send nonce value")
 var ErrNonceRead = errors.New("Could not read nonce value")
-var ErrDecryption = errors.New("Could not decrypt received message")
 
 type secureReader struct {
 	backer    io.Reader
