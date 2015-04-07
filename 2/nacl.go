@@ -31,14 +31,14 @@ var ErrNonceWrite = errors.New("Could not send nonce value")
 var ErrNonceRead = errors.New("Could not read nonce value")
 
 type secureReader struct {
-	backer    io.Reader
-	sharedKey [32]byte
+	r   io.Reader
+	key [32]byte
 }
 
-func (s secureReader) Read(p []byte) (int, error) {
+func (r secureReader) Read(p []byte) (int, error) {
 	// Read nonce from underlying Reader
 	var nonce [24]byte
-	if _, err := io.ReadFull(s.backer, nonce[:]); err != nil {
+	if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
 		if err == io.EOF {
 			return 0, err
 		}
@@ -47,13 +47,13 @@ func (s secureReader) Read(p []byte) (int, error) {
 
 	// Read message from underlying Reader
 	buffer := make([]byte, config.BufferSize)
-	c, err := s.backer.Read(buffer)
+	c, err := r.r.Read(buffer)
 	if c <= 0 {
 		return c, err
 	}
 
 	// Decrypt new message
-	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], &nonce, &s.sharedKey)
+	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], &nonce, &r.key)
 	if !success {
 		return 0, ErrDecryption
 	}
@@ -62,23 +62,23 @@ func (s secureReader) Read(p []byte) (int, error) {
 }
 
 type secureWriter struct {
-	backer    io.Writer
-	sharedKey [32]byte
+	w   io.Writer
+	key [32]byte
 }
 
-func (s secureWriter) Write(p []byte) (n int, err error) {
+func (w secureWriter) Write(p []byte) (n int, err error) {
 	// create random nonce and send
 	var nonce [24]byte
 	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		return 0, ErrNonceWrite
 	}
-	if _, err = s.backer.Write(nonce[:]); err != nil {
+	if _, err = w.w.Write(nonce[:]); err != nil {
 		return 0, ErrNonceWrite
 	}
 
 	// encrypted and send message
-	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &s.sharedKey)
-	if _, err := s.backer.Write(encrypted); err != nil {
+	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &w.key)
+	if _, err := w.w.Write(encrypted); err != nil {
 		return 0, err
 	}
 
