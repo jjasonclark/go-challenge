@@ -19,7 +19,7 @@ var config = struct {
 var ErrKeyExchange = errors.New("Could not exhange public keys")
 
 // Error generating public and private key pairs
-var ErrEncryption = errors.New("Could not generate encryption keys")
+var ErrKeyGen = errors.New("Could not generate encryption keys")
 
 // Error decrypting recieved message
 var ErrDecryption = errors.New("Could not decrypt received message")
@@ -89,7 +89,7 @@ func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, ErrEncryption
+		return nil, nil, ErrKeyGen
 	}
 
 	// Send public key
