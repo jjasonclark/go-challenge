@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -34,7 +33,7 @@ func Dial(addr string) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return serverHandshake(conn)
+	return handshake(conn)
 }
 
 // Serve starts a secure echo server on the given listener.
@@ -44,15 +43,18 @@ func Serve(l net.Listener) error {
 		return err
 	}
 	defer conn.Close()
-	sc, err := serverHandshake(conn)
+	sc, err := handshake(conn)
 	if err != nil {
 		return err
 	}
 
 	echoReader := io.TeeReader(sc.Reader, os.Stdout)
-	io.Copy(sc.Writer, echoReader)
-	os.Stdout.Write([]byte("\n"))
-	return errors.New("Thank you for voting")
+	c, err := io.Copy(sc.Writer, echoReader)
+	if c >= 0 {
+		os.Stdout.Write([]byte("\n"))
+		return nil
+	}
+	return err
 }
 
 var config = struct {
