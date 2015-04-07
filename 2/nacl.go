@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -32,7 +33,7 @@ func (s *NaclReadWriteCloser) Close() error {
 
 type secureReader struct {
 	backer    io.Reader
-	decrypted []byte
+	decrypted bytes.Buffer
 	sharedKey [32]byte
 }
 
@@ -55,25 +56,24 @@ func (s *secureReader) readBacker(p []byte) (int, error) {
 	// Decrypt new message part
 	var decrypted []byte
 	var success bool
-	before := len(s.decrypted)
-	decrypted, success = box.OpenAfterPrecomputation(s.decrypted, message[:c], &nonce, &s.sharedKey)
+	before := s.decrypted.Len()
+	decrypted, success = box.OpenAfterPrecomputation(s.decrypted.Bytes(), message[:c], &nonce, &s.sharedKey)
 	after := len(decrypted)
 	read := after - before
 	if !success {
 		// what does this mean?
 		return 0, nil
 	}
-	s.decrypted = decrypted
+	if decrypted != s.decrypted.Bytes() {
+		s.decrypted.Write(decrypted[before:after])
+	}
 	return read, nil
 }
 
 func (s secureReader) Read(p []byte) (int, error) {
 	s.readBacker(p)
 
-	read2 := copy(p, s.decrypted)     // TODO: need a writer or something to do this for me
-	s.decrypted = s.decrypted[read2:] // TODO: maybe a circular buffer?
-
-	return read2, nil
+	return s.decrypted.Write(p)
 }
 
 type secureWriter struct {

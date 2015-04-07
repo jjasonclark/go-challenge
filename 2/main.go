@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	reader := secureReader{
 		backer:    r,
-		decrypted: make([]byte, config.BufferSize)[:0],
+		decrypted: bytes.NewBuffer((make([]byte, config.BufferSize))[:0]),
 	}
 	box.Precompute(&reader.sharedKey, pub, priv)
 	return reader
@@ -54,8 +55,8 @@ func Serve(l net.Listener) error {
 		return err
 	}
 
-	echo := io.TeeReader(sc.Reader, os.Stdout)
-	io.Copy(sc.Writer, echo)
+	echoReader := io.TeeReader(sc.Reader, os.Stdout)
+	io.Copy(sc.Writer, echoReader)
 	os.Stdout.Write([]byte("\n"))
 	return errors.New("Thank you for voting")
 }
