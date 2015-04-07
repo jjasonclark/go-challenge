@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
-var config = struct {
+var Config = struct {
 	BufferSize int
 }{
 	BufferSize: 1024 * 32, // 32kb
@@ -46,7 +46,7 @@ func (r SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Read message from underlying Reader
-	buffer := make([]byte, config.BufferSize)
+	buffer := make([]byte, Config.BufferSize)
 	c, err := r.r.Read(buffer)
 	if c <= 0 {
 		return c, err
