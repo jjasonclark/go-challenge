@@ -103,7 +103,7 @@ func (s secureWriter) Write(p []byte) (n int, err error) {
 	return s.backer.Write(encrypted)
 }
 
-func serverHandshake(conn net.Conn) (io.ReadWriteCloser, error) {
+func serverHandshake(conn net.Conn) (*NaclReadWriteCloser, error) {
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, NaclEncryptionError
@@ -116,9 +116,8 @@ func serverHandshake(conn net.Conn) (io.ReadWriteCloser, error) {
 
 	// Read othe side's public key
 	var otherPub [32]byte
-	var c int
-	c, err = conn.Read(otherPub[:])
-	if c < 32 || err != nil {
+	_, err = io.ReadFull(conn, otherPub[:])
+	if err != nil {
 		return nil, NaclKeyExchangeError
 	}
 

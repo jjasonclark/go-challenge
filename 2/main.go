@@ -1,13 +1,15 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/crypto/nacl/box"
 	"io"
 	"log"
 	"net"
 	"os"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 // NewSecureReader instantiates a new SecureReader
@@ -51,21 +53,15 @@ func Serve(l net.Listener) error {
 	if err != nil {
 		return err
 	}
-	buf := make([]byte, config.BufferSize)
-	r, err := sc.Read(buf)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(buf[:r]))
-	_, err = sc.Write(buf[:r])
-	if err != nil {
-		return err
-	}
-	return nil
+
+	echo := io.TeeReader(sc.Reader, os.Stdout)
+	io.Copy(sc.Writer, echo)
+	os.Stdout.Write([]byte("\n"))
+	return errors.New("Thank you for voting")
 }
 
 var config = struct {
-	BufferSize uint64
+	BufferSize int
 }{
 	BufferSize: 1024 * 32, // 32kb
 }
