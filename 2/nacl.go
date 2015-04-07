@@ -77,6 +77,7 @@ func (s secureWriter) Write(p []byte) (n int, err error) {
 }
 
 func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
+	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, ErrEncryption
