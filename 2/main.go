@@ -53,7 +53,6 @@ func Serve(l net.Listener) error {
 	}
 	buf := make([]byte, config.BufferSize)
 	r, err := sc.Read(buf)
-	fmt.Printf("Jason: read server for %d bytes\n", r)
 	if err != nil {
 		return err
 	}
