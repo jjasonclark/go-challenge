@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -18,6 +17,8 @@ type NaclReadWriteCloser struct {
 
 var NaclKeyExchangeError = errors.New("Could not exhange keys")
 var NaclEncryptionError = errors.New("Could not generate encryption keys")
+var ErrNonceWrite = errors.New("Could not send nonce value")
+var ErrNonceRead = errors.New("Could not read nonce value")
 
 func (s *NaclReadWriteCloser) Read(p []byte) (n int, err error) {
 	return s.Reader.Read(p)
@@ -33,42 +34,30 @@ func (s *NaclReadWriteCloser) Close() error {
 
 type secureReader struct {
 	backer    io.Reader
-	decrypted *bytes.Buffer
 	sharedKey [32]byte
 }
 
-func (s secureReader) readBacker() ([]byte, error) {
-	// Read nonce
+func (s secureReader) Read(p []byte) (int, error) {
+	// Read nonce from underlying Reader
 	var nonce [24]byte
 	if _, err := io.ReadFull(s.backer, nonce[:]); err != nil {
-		return nil, err
+		return 0, ErrNonceRead
 	}
 
 	// Read message from underlying Reader
-	buffer := bytes.NewBuffer((make([]byte, config.BufferSize))[0:0])
-	if _, err := buffer.ReadFrom(s.backer); err != nil {
-		return nil, err
+	buffer := make([]byte, config.BufferSize)
+	c, err := s.backer.Read(buffer)
+	if err != nil {
+		return 0, err
 	}
 
-	// Decrypt new message part
-	decrypted, success := box.OpenAfterPrecomputation(nil, buffer.Bytes(), &nonce, &s.sharedKey)
+	// Decrypt new message
+	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], &nonce, &s.sharedKey)
 	if !success {
-		// what does this mean?
-		return nil, nil
+		return 0, nil
 	}
 
-	return decrypted, nil
-}
-
-func (s secureReader) Read(p []byte) (int, error) {
-	for {
-		i, err := s.decrypted.Write(p)
-		decrypted, err := s.readBacker()
-
-		c := copy(p, decrypted)
-		s.decrypted.Write(decrypted[c:])
-	}
-	return s.decrypted.Read(p)
+	return copy(p, decrypted), nil
 }
 
 type secureWriter struct {
@@ -77,22 +66,22 @@ type secureWriter struct {
 }
 
 func (s secureWriter) Write(p []byte) (n int, err error) {
-	// create random nonce
+	// create random nonce and send
 	var nonce [24]byte
 	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		// todo: better error
-		return 0, err
+		return 0, ErrNonceWrite
 	}
-
-	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &s.sharedKey)
-
-	// write nonce
 	if _, err = s.backer.Write(nonce[:]); err != nil {
+		return 0, ErrNonceWrite
+	}
+
+	// encrypted and send message
+	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &s.sharedKey)
+	if _, err := s.backer.Write(encrypted); err != nil {
 		return 0, err
 	}
 
-	// write message
-	return s.backer.Write(encrypted)
+	return len(p), nil
 }
 
 func serverHandshake(conn net.Conn) (*NaclReadWriteCloser, error) {
@@ -102,14 +91,13 @@ func serverHandshake(conn net.Conn) (*NaclReadWriteCloser, error) {
 	}
 
 	// Send public key
-	if _, err = conn.Write(pub[:]); err != nil {
+	if _, err := conn.Write(pub[:]); err != nil {
 		return nil, NaclKeyExchangeError
 	}
 
 	// Read othe side's public key
 	var otherPub [32]byte
-	_, err = io.ReadFull(conn, otherPub[:])
-	if err != nil {
+	if _, err := io.ReadFull(conn, otherPub[:]); err != nil {
 		return nil, NaclKeyExchangeError
 	}
 

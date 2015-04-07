@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,20 +14,14 @@ import (
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
-	buffer := make([]byte, config.BufferSize)
-	reader := secureReader{
-		backer:    r,
-		decrypted: bytes.NewBuffer(buffer[:0]),
-	}
+	reader := secureReader{backer: r}
 	box.Precompute(&reader.sharedKey, pub, priv)
 	return reader
 }
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	writer := secureWriter{
-		backer: w,
-	}
+	writer := secureWriter{backer: w}
 	box.Precompute(&writer.sharedKey, pub, priv)
 	return writer
 }
