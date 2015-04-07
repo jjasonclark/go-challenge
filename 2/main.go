@@ -13,14 +13,14 @@ import (
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
-	reader := secureReader{r: r}
+	reader := SecureReader{r: r}
 	box.Precompute(&reader.key, pub, priv)
 	return reader
 }
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	writer := secureWriter{w: w}
+	writer := SecureWriter{w: w}
 	box.Precompute(&writer.key, pub, priv)
 	return writer
 }

@@ -30,12 +30,12 @@ var ErrNonceWrite = errors.New("Could not send nonce value")
 // Error reading nonce value for message
 var ErrNonceRead = errors.New("Could not read nonce value")
 
-type secureReader struct {
+type SecureReader struct {
 	r   io.Reader
 	key [32]byte
 }
 
-func (r secureReader) Read(p []byte) (int, error) {
+func (r SecureReader) Read(p []byte) (int, error) {
 	// Read nonce from underlying Reader
 	var nonce [24]byte
 	if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
@@ -61,12 +61,12 @@ func (r secureReader) Read(p []byte) (int, error) {
 	return copy(p, decrypted), err
 }
 
-type secureWriter struct {
+type SecureWriter struct {
 	w   io.Writer
 	key [32]byte
 }
 
-func (w secureWriter) Write(p []byte) (n int, err error) {
+func (w SecureWriter) Write(p []byte) (n int, err error) {
 	// create random nonce and send
 	var nonce [24]byte
 	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
