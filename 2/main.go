@@ -15,9 +15,10 @@ import (
 
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
+	buffer := make([]byte, config.BufferSize)
 	reader := secureReader{
 		backer:    r,
-		decrypted: bytes.NewBuffer((make([]byte, config.BufferSize))[:0]),
+		decrypted: bytes.NewBuffer(buffer[:0]),
 	}
 	box.Precompute(&reader.sharedKey, pub, priv)
 	return reader

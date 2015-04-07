@@ -33,47 +33,42 @@ func (s *NaclReadWriteCloser) Close() error {
 
 type secureReader struct {
 	backer    io.Reader
-	decrypted bytes.Buffer
+	decrypted *bytes.Buffer
 	sharedKey [32]byte
 }
 
-func (s *secureReader) readBacker(p []byte) (int, error) {
+func (s secureReader) readBacker() ([]byte, error) {
 	// Read nonce
 	var nonce [24]byte
-	var err error
-	_, err = io.ReadFull(s.backer, nonce[:])
-	if err != nil {
-		return 0, err
+	if _, err := io.ReadFull(s.backer, nonce[:]); err != nil {
+		return nil, err
 	}
 
 	// Read message from underlying Reader
-	message := make([]byte, config.BufferSize)
-	c, err := s.backer.Read(message[:])
-	if err != nil {
-		return 0, err
+	buffer := bytes.NewBuffer((make([]byte, config.BufferSize))[0:0])
+	if _, err := buffer.ReadFrom(s.backer); err != nil {
+		return nil, err
 	}
 
 	// Decrypt new message part
-	var decrypted []byte
-	var success bool
-	before := s.decrypted.Len()
-	decrypted, success = box.OpenAfterPrecomputation(s.decrypted.Bytes(), message[:c], &nonce, &s.sharedKey)
-	after := len(decrypted)
-	read := after - before
+	decrypted, success := box.OpenAfterPrecomputation(nil, buffer.Bytes(), &nonce, &s.sharedKey)
 	if !success {
 		// what does this mean?
-		return 0, nil
+		return nil, nil
 	}
-	if decrypted != s.decrypted.Bytes() {
-		s.decrypted.Write(decrypted[before:after])
-	}
-	return read, nil
+
+	return decrypted, nil
 }
 
 func (s secureReader) Read(p []byte) (int, error) {
-	s.readBacker(p)
+	for {
+		i, err := s.decrypted.Write(p)
+		decrypted, err := s.readBacker()
 
-	return s.decrypted.Write(p)
+		c := copy(p, decrypted)
+		s.decrypted.Write(decrypted[c:])
+	}
+	return s.decrypted.Read(p)
 }
 
 type secureWriter struct {
@@ -84,18 +79,15 @@ type secureWriter struct {
 func (s secureWriter) Write(p []byte) (n int, err error) {
 	// create random nonce
 	var nonce [24]byte
-	_, err = io.ReadFull(rand.Reader, nonce[:])
-	if err != nil {
+	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		// todo: better error
 		return 0, err
 	}
 
-	encrypted := make([]byte, len(p)+1024)[:0]
-	encrypted = box.SealAfterPrecomputation(encrypted, p, &nonce, &s.sharedKey)
+	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &s.sharedKey)
 
 	// write nonce
-	_, err = s.backer.Write(nonce[:])
-	if err != nil {
+	if _, err = s.backer.Write(nonce[:]); err != nil {
 		return 0, err
 	}
 
