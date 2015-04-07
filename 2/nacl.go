@@ -9,29 +9,11 @@ import (
 	"golang.org/x/crypto/nacl/box"
 )
 
-type NaclReadWriteCloser struct {
-	Reader io.Reader
-	Writer io.Writer
-	backer io.ReadWriteCloser
-}
-
-var NaclKeyExchangeError = errors.New("Could not exhange keys")
-var NaclEncryptionError = errors.New("Could not generate encryption keys")
+var ErrKeyExchange = errors.New("Could not exhange keys")
+var ErrEncryption = errors.New("Could not generate encryption keys")
 var ErrNonceWrite = errors.New("Could not send nonce value")
 var ErrNonceRead = errors.New("Could not read nonce value")
 var ErrDecryption = errors.New("Could not decrypt received message")
-
-func (s *NaclReadWriteCloser) Read(p []byte) (n int, err error) {
-	return s.Reader.Read(p)
-}
-
-func (s *NaclReadWriteCloser) Write(p []byte) (n int, err error) {
-	return s.Writer.Write(p)
-}
-
-func (s *NaclReadWriteCloser) Close() error {
-	return s.backer.Close()
-}
 
 type secureReader struct {
 	backer    io.Reader
@@ -88,27 +70,25 @@ func (s secureWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func handshake(conn net.Conn) (*NaclReadWriteCloser, error) {
+func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, NaclEncryptionError
+		return nil, nil, ErrEncryption
 	}
 
 	// Send public key
 	if _, err := conn.Write(pub[:]); err != nil {
-		return nil, NaclKeyExchangeError
+		return nil, nil, ErrKeyExchange
 	}
 
 	// Read othe side's public key
 	var otherPub [32]byte
 	if _, err := io.ReadFull(conn, otherPub[:]); err != nil {
-		return nil, NaclKeyExchangeError
+		return nil, nil, ErrKeyExchange
 	}
 
 	// Return created reader and writer
-	return &NaclReadWriteCloser{
-		backer: conn,
-		Reader: NewSecureReader(conn, priv, &otherPub),
-		Writer: NewSecureWriter(conn, priv, &otherPub),
-	}, nil
+	return NewSecureReader(conn, priv, &otherPub),
+		NewSecureWriter(conn, priv, &otherPub),
+		nil
 }

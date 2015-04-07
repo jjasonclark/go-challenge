@@ -33,7 +33,19 @@ func Dial(addr string) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return handshake(conn)
+	reader, writer, err := handshake(conn)
+	if err != nil {
+		return nil, err
+	}
+	return struct {
+		io.Reader
+		io.Writer
+		io.Closer
+	}{
+		Reader: reader,
+		Writer: writer,
+		Closer: conn,
+	}, nil
 }
 
 // Serve starts a secure echo server on the given listener.
@@ -43,13 +55,13 @@ func Serve(l net.Listener) error {
 		return err
 	}
 	defer conn.Close()
-	sc, err := handshake(conn)
+	reader, writer, err := handshake(conn)
 	if err != nil {
 		return err
 	}
 
-	echoReader := io.TeeReader(sc.Reader, os.Stdout)
-	c, err := io.Copy(sc.Writer, echoReader)
+	echoReader := io.TeeReader(reader, os.Stdout)
+	c, err := io.Copy(writer, echoReader)
 	if c >= 0 {
 		os.Stdout.Write([]byte("\n"))
 		return nil
