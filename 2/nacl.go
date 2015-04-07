@@ -15,10 +15,19 @@ var config = struct {
 	BufferSize: 1024 * 32, // 32kb
 }
 
+// Error exchanging the public keys
 var ErrKeyExchange = errors.New("Could not exhange public keys")
+
+// Error generating public and private key pairs
 var ErrEncryption = errors.New("Could not generate encryption keys")
+
+// Error decrypting recieved message
 var ErrDecryption = errors.New("Could not decrypt received message")
+
+// Error sending nonce value for message
 var ErrNonceWrite = errors.New("Could not send nonce value")
+
+// Error reading nonce value for message
 var ErrNonceRead = errors.New("Could not read nonce value")
 
 type secureReader struct {
