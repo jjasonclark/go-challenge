@@ -7,13 +7,8 @@ import (
 	"net"
 
 	"golang.org/x/crypto/nacl/box"
+	"golang.org/x/crypto/nacl/secretbox"
 )
-
-var Config = struct {
-	BufferSize int
-}{
-	BufferSize: 1024 * 32, // 32kb
-}
 
 // Error exchanging the public keys
 var ErrKeyExchange = errors.New("Could not exhange public keys")
@@ -46,7 +41,7 @@ func (r SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Read message from underlying Reader
-	buffer := make([]byte, Config.BufferSize)
+	buffer := make([]byte, len(p)+secretbox.Overhead)
 	c, err := r.r.Read(buffer)
 	if c <= 0 {
 		return c, err
