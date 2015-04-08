@@ -99,7 +99,7 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func handshake(conn net.Conn) (*SecureReader, *SecureWriter, error) {
+func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {

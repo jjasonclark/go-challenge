@@ -12,7 +12,7 @@ import (
 )
 
 // NewSecureReader instantiates a new SecureReader
-func NewSecureReader(r io.Reader, priv, pub *[32]byte) *SecureReader {
+func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	var key [32]byte
 	reader := SecureReader{r: r, key: &key}
 	box.Precompute(reader.key, pub, priv)
@@ -20,7 +20,7 @@ func NewSecureReader(r io.Reader, priv, pub *[32]byte) *SecureReader {
 }
 
 // NewSecureWriter instantiates a new SecureWriter
-func NewSecureWriter(w io.Writer, priv, pub *[32]byte) *SecureWriter {
+func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
 	var key [32]byte
 	writer := SecureWriter{w: w, key: &key}
 	box.Precompute(writer.key, pub, priv)
