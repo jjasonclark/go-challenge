@@ -114,7 +114,7 @@ func NewSecureConn(conn net.Conn) (io.ReadWriteCloser, error) {
 	}
 
 	var key [32]byte
-	box.Precompute(&key, pub, priv)
+	box.Precompute(&key, &otherPub, priv)
 
 	return struct {
 		io.Reader
