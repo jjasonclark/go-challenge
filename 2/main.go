@@ -123,7 +123,7 @@ func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
 		return nil, nil, ErrKeyExchange
 	}
 
-	// Read othe side's public key
+	// Read other side's public key
 	var otherPub [32]byte
 	if _, err := io.ReadFull(conn, otherPub[:]); err != nil {
 		return nil, nil, ErrKeyExchange
@@ -185,9 +185,8 @@ func Serve(l net.Listener) error {
 	}
 	echoReader := io.TeeReader(reader, os.Stdout)
 	c, err := io.Copy(writer, echoReader)
-	if c >= 0 {
+	if c > 0 {
 		os.Stdout.Write([]byte("\n"))
-		return nil
 	}
 	return err
 }
