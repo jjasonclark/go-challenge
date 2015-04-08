@@ -138,17 +138,15 @@ func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
 // NewSecureReader instantiates a new SecureReader
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	var key [32]byte
-	reader := SecureReader{r: r, key: &key}
-	box.Precompute(reader.key, pub, priv)
-	return &reader
+	box.Precompute(&key, pub, priv)
+	return &SecureReader{r: r, key: &key}
 }
 
 // NewSecureWriter instantiates a new SecureWriter
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
 	var key [32]byte
-	writer := SecureWriter{w: w, key: &key}
-	box.Precompute(writer.key, pub, priv)
-	return &writer
+	box.Precompute(&key, pub, priv)
+	return &SecureWriter{w: w, key: &key}
 }
 
 // Dial generates a private/public key pair,
