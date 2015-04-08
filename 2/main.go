@@ -14,20 +14,18 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// ErrKeyExchange indicates an error exchanging the public keys
-var ErrKeyExchange = errors.New("could not exchange public keys")
-
-// ErrKeyGen indicates an error generating public and private key pairs
-var ErrKeyGen = errors.New("could not generate encryption keys")
-
-// ErrDecryption indicates an error decrypting a message
-var ErrDecryption = errors.New("could not decrypt received message")
-
-// ErrNonceWrite indicates an error sending nonce value for message
-var ErrNonceWrite = errors.New("could not send nonce value")
-
-// ErrNonceRead indicates an error reading nonce value for message
-var ErrNonceRead = errors.New("could not read nonce value")
+var (
+	// ErrKeyExchange indicates an error exchanging the public keys
+	ErrKeyExchange = errors.New("could not exchange public keys")
+	// ErrKeyGen indicates an error generating public and private key pairs
+	ErrKeyGen = errors.New("could not generate encryption keys")
+	// ErrDecryption indicates an error decrypting a message
+	ErrDecryption = errors.New("could not decrypt received message")
+	// ErrNonceWrite indicates an error sending nonce value for message
+	ErrNonceWrite = errors.New("could not send nonce value")
+	// ErrNonceRead indicates an error reading nonce value for message
+	ErrNonceRead = errors.New("could not read nonce value")
+)
 
 // SecureReader implements NACL box encryption for an io.Reader object
 type SecureReader struct {
