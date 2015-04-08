@@ -14,22 +14,22 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// Error exchanging the public keys
-var ErrKeyExchange = errors.New("Could not exchange public keys")
+// ErrKeyExchange indicates an error exchanging the public keys
+var ErrKeyExchange = errors.New("could not exchange public keys")
 
-// Error generating public and private key pairs
-var ErrKeyGen = errors.New("Could not generate encryption keys")
+// ErrKeyGen indicates an error generating public and private key pairs
+var ErrKeyGen = errors.New("could not generate encryption keys")
 
-// Error decrypting received message
-var ErrDecryption = errors.New("Could not decrypt received message")
+// ErrDecryption indicates an error decrypting a message
+var ErrDecryption = errors.New("could not decrypt received message")
 
-// Error sending nonce value for message
-var ErrNonceWrite = errors.New("Could not send nonce value")
+// ErrNonceWrite indicates an error sending nonce value for message
+var ErrNonceWrite = errors.New("could not send nonce value")
 
-// Error reading nonce value for message
-var ErrNonceRead = errors.New("Could not read nonce value")
+// ErrNonceRead indicates an error reading nonce value for message
+var ErrNonceRead = errors.New("could not read nonce value")
 
-// SecureReader implements NaCl box encryption for an io.Reader object
+// SecureReader implements NACL box encryption for an io.Reader object
 type SecureReader struct {
 	r     io.Reader
 	key   *[32]byte
@@ -72,7 +72,7 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	return copy(p, decrypted), err
 }
 
-// SecureWriter implements NaCl box encryption for an io.Writer object.
+// SecureWriter implements NACL box encryption for an io.Writer object.
 type SecureWriter struct {
 	w     io.Writer
 	key   *[32]byte
