@@ -15,12 +15,12 @@ import (
 )
 
 // Error exchanging the public keys
-var ErrKeyExchange = errors.New("Could not exhange public keys")
+var ErrKeyExchange = errors.New("Could not exchange public keys")
 
 // Error generating public and private key pairs
 var ErrKeyGen = errors.New("Could not generate encryption keys")
 
-// Error decrypting recieved message
+// Error decrypting received message
 var ErrDecryption = errors.New("Could not decrypt received message")
 
 // Error sending nonce value for message
@@ -29,7 +29,7 @@ var ErrNonceWrite = errors.New("Could not send nonce value")
 // Error reading nonce value for message
 var ErrNonceRead = errors.New("Could not read nonce value")
 
-// SecureReader implements NaCl box encryption for an io.Reader object.
+// SecureReader implements NaCl box encryption for an io.Reader object
 type SecureReader struct {
 	r     io.Reader
 	key   *[32]byte
@@ -57,14 +57,14 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Read message from underlying Reader
-	buffer := make([]byte, len(p)+secretbox.Overhead)
-	c, err := r.r.Read(buffer)
+	buf := make([]byte, len(p)+secretbox.Overhead)
+	c, err := r.r.Read(buf)
 	if c <= 0 {
 		return c, err
 	}
 
 	// Decrypt new message
-	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], r.nonce, r.key)
+	decrypted, success := box.OpenAfterPrecomputation(nil, buf[:c], r.nonce, r.key)
 	if !success {
 		return 0, ErrDecryption
 	}
@@ -111,28 +111,36 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
+func NewSecureConn(conn net.Conn) (io.ReadWriteCloser, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, ErrKeyGen
+		return nil, ErrKeyGen
 	}
 
 	// Send public key
 	if _, err := conn.Write(pub[:]); err != nil {
-		return nil, nil, ErrKeyExchange
+		return nil, ErrKeyExchange
 	}
 
 	// Read other side's public key
 	var otherPub [32]byte
 	if _, err := io.ReadFull(conn, otherPub[:]); err != nil {
-		return nil, nil, ErrKeyExchange
+		return nil, ErrKeyExchange
 	}
 
-	// Return created reader and writer
-	return NewSecureReader(conn, priv, &otherPub),
-		NewSecureWriter(conn, priv, &otherPub),
-		nil
+	var key [32]byte
+	box.Precompute(&key, pub, priv)
+
+	return struct {
+		io.Reader
+		io.Writer
+		io.Closer
+	}{
+		Reader: &SecureReader{r: conn, key: &key},
+		Writer: &SecureWriter{w: conn, key: &key},
+		Closer: conn,
+	}, nil
 }
 
 // NewSecureReader instantiates a new SecureReader
@@ -157,19 +165,7 @@ func Dial(addr string) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	reader, writer, err := handshake(conn)
-	if err != nil {
-		return nil, err
-	}
-	return struct {
-		io.Reader
-		io.Writer
-		io.Closer
-	}{
-		Reader: reader,
-		Writer: writer,
-		Closer: conn,
-	}, nil
+	return NewSecureConn(conn)
 }
 
 // Serve starts a secure echo server on the given listener.
@@ -179,12 +175,12 @@ func Serve(l net.Listener) error {
 		return err
 	}
 	defer conn.Close()
-	reader, writer, err := handshake(conn)
+	rw, err := NewSecureConn(conn)
 	if err != nil {
 		return err
 	}
-	echoReader := io.TeeReader(reader, os.Stdout)
-	c, err := io.Copy(writer, echoReader)
+	echoReader := io.TeeReader(rw, os.Stdout)
+	c, err := io.Copy(rw, echoReader)
 	if c > 0 {
 		os.Stdout.Write([]byte("\n"))
 	}
