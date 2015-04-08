@@ -11,7 +11,6 @@ import (
 	"os"
 
 	"golang.org/x/crypto/nacl/box"
-	"golang.org/x/crypto/nacl/secretbox"
 )
 
 var (
@@ -46,7 +45,7 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Read message from underlying Reader
-	buf := make([]byte, len(p)+secretbox.Overhead)
+	buf := make([]byte, len(p)+box.Overhead)
 	n, err := r.r.Read(buf)
 	if n <= 0 {
 		return n, err
