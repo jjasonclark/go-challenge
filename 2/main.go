@@ -17,8 +17,8 @@ import (
 var (
 	// ErrKeyExchange indicates an error exchanging the public keys
 	ErrKeyExchange = errors.New("could not exchange public keys")
-	// ErrKeyGen indicates an error generating public and private key pairs
-	ErrKeyGen = errors.New("could not generate encryption keys")
+	// ErrKeyGeneration indicates an error generating public and private key pairs
+	ErrKeyGeneration = errors.New("could not generate encryption keys")
 	// ErrDecryption indicates an error decrypting a message
 	ErrDecryption = errors.New("could not decrypt received message")
 	// ErrNonceWrite indicates an error sending nonce value for message
@@ -27,14 +27,14 @@ var (
 	ErrNonceRead = errors.New("could not read nonce value")
 )
 
-// SecureReader implements NACL box encryption for an io.Reader object
+// SecureReader implements NACL box encryption for an io.Reader object.
 type SecureReader struct {
 	r     io.Reader
 	key   *[32]byte
 	nonce *[24]byte
 }
 
-// Read and decrypt
+// Read and decrypt message from underlying io.Reader.
 func (r *SecureReader) Read(p []byte) (int, error) {
 	// Each message starts with a nonce
 	// Only read the nonce once
@@ -69,7 +69,7 @@ type SecureWriter struct {
 	nonce *[24]byte
 }
 
-// Encrypt and write
+// Encrypt and write message to underlying io.Writer.
 func (w *SecureWriter) Write(p []byte) (int, error) {
 	// Each message starts with a generated nonce
 	// Only write the nonce once
@@ -94,12 +94,12 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 }
 
 // NewSecureConn instantiates a new SecureReader and SecureWriter with
-// public keys exchanged
+// public keys exchanged.
 func NewSecureConn(conn net.Conn) (io.ReadWriteCloser, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, ErrKeyGen
+		return nil, ErrKeyGeneration
 	}
 
 	// Send public key
@@ -127,14 +127,14 @@ func NewSecureConn(conn net.Conn) (io.ReadWriteCloser, error) {
 	}, nil
 }
 
-// NewSecureReader instantiates a new SecureReader
+// NewSecureReader instantiates a new SecureReader.
 func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
 	var key [32]byte
 	box.Precompute(&key, pub, priv)
 	return &SecureReader{r: r, key: &key}
 }
 
-// NewSecureWriter instantiates a new SecureWriter
+// NewSecureWriter instantiates a new SecureWriter.
 func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
 	var key [32]byte
 	box.Precompute(&key, pub, priv)
