@@ -157,8 +157,7 @@ func Serve(l net.Listener) error {
 	if err != nil {
 		return err
 	}
-	echoReader := io.TeeReader(rw, os.Stdout)
-	n, err := io.Copy(rw, echoReader)
+	n, err := io.Copy(rw, io.TeeReader(rw, os.Stdout))
 	if n > 0 {
 		os.Stdout.Write([]byte("\n"))
 	}
