@@ -36,9 +36,10 @@ type SecureReader struct {
 	nonce *[24]byte
 }
 
+// Read nonce from underlying Reader
+// Only first call will read the nonce. Subsequent calls return nil
 func (r *SecureReader) readNonce() error {
 	if r.nonce == nil {
-		// Read nonce from underlying Reader
 		var nonce [24]byte
 		if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
 			return ErrNonceRead
@@ -48,7 +49,9 @@ func (r *SecureReader) readNonce() error {
 	return nil
 }
 
+// Read and decrypt
 func (r *SecureReader) Read(p []byte) (int, error) {
+	// Each message starts with a nonce
 	if err := r.readNonce(); err != nil {
 		return 0, err
 	}
@@ -76,10 +79,10 @@ type SecureWriter struct {
 	nonce *[24]byte
 }
 
-// Generate and write nonce
+// Generate and write nonce to underlying writer
+// Only first call will write the nonce. Subsequent calls return nil
 func (w *SecureWriter) writeNonce() error {
 	if w.nonce == nil {
-		// create random nonce and send
 		var nonce [24]byte
 		if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
 			return ErrNonceWrite
@@ -92,7 +95,9 @@ func (w *SecureWriter) writeNonce() error {
 	return nil
 }
 
+// Encrypt and write
 func (w *SecureWriter) Write(p []byte) (int, error) {
+	// Each message starts with a nonce
 	if err := w.writeNonce(); err != nil {
 		return 0, err
 	}
