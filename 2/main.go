@@ -67,7 +67,7 @@ type SecureWriter struct {
 	nonce *[24]byte
 }
 
-// Write encryptes the contents of p and writes it to the underlying io.Writer.
+// Write encrypts the contents of p and writes it to the underlying io.Writer.
 func (w *SecureWriter) Write(p []byte) (int, error) {
 	// Each message starts with a generated nonce. Only write the nonce once.
 	if w.nonce == nil {
