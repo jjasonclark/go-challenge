@@ -183,7 +183,6 @@ func Serve(l net.Listener) error {
 	if err != nil {
 		return err
 	}
-
 	echoReader := io.TeeReader(reader, os.Stdout)
 	c, err := io.Copy(writer, echoReader)
 	if c >= 0 {
