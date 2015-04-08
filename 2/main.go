@@ -48,13 +48,13 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 
 	// Read message from underlying Reader
 	buf := make([]byte, len(p)+secretbox.Overhead)
-	c, err := r.r.Read(buf)
-	if c <= 0 {
-		return c, err
+	n, err := r.r.Read(buf)
+	if n <= 0 {
+		return n, err
 	}
 
 	// Decrypt new message
-	decrypted, success := box.OpenAfterPrecomputation(nil, buf[:c], r.nonce, r.key)
+	decrypted, success := box.OpenAfterPrecomputation(nil, buf[:n], r.nonce, r.key)
 	if !success {
 		return 0, ErrDecryption
 	}
@@ -164,8 +164,8 @@ func Serve(l net.Listener) error {
 		return err
 	}
 	echoReader := io.TeeReader(rw, os.Stdout)
-	c, err := io.Copy(rw, echoReader)
-	if c > 0 {
+	n, err := io.Copy(rw, echoReader)
+	if n > 0 {
 		os.Stdout.Write([]byte("\n"))
 	}
 	return err
