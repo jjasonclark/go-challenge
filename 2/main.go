@@ -78,8 +78,8 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	}
 
 	// encrypted and send message
-	encrypted := box.SealAfterPrecomputation(nil, p, w.nonce, w.key)
-	if _, err := w.w.Write(encrypted); err != nil {
+	box := box.SealAfterPrecomputation(nil, p, w.nonce, w.key)
+	if _, err := w.w.Write(box); err != nil {
 		return 0, err
 	}
 	return len(p), nil
