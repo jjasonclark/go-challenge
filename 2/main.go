@@ -52,11 +52,11 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Decrypt new message
-	decrypted, success := box.OpenAfterPrecomputation(nil, buf[:n], r.nonce, r.key)
+	m, success := box.OpenAfterPrecomputation(nil, buf[:n], r.nonce, r.key)
 	if !success {
 		return 0, ErrDecryption
 	}
-	return copy(p, decrypted), err
+	return copy(p, m), err
 }
 
 // SecureWriter implements NaCl box encryption for an io.Writer object.
