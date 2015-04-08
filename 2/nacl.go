@@ -26,18 +26,26 @@ var ErrNonceWrite = errors.New("Could not send nonce value")
 var ErrNonceRead = errors.New("Could not read nonce value")
 
 type SecureReader struct {
-	r   io.Reader
-	key [32]byte
+	r     io.Reader
+	key   *[32]byte
+	nonce *[24]byte
 }
 
-func (r SecureReader) Read(p []byte) (int, error) {
-	// Read nonce from underlying Reader
-	var nonce [24]byte
-	if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
-		if err == io.EOF {
-			return 0, err
+func (r *SecureReader) readNonce() error {
+	if r.nonce == nil {
+		// Read nonce from underlying Reader
+		var nonce [24]byte
+		if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
+			return ErrNonceRead
 		}
-		return 0, ErrNonceRead
+		r.nonce = &nonce
+	}
+	return nil
+}
+
+func (r *SecureReader) Read(p []byte) (int, error) {
+	if err := r.readNonce(); err != nil {
+		return 0, err
 	}
 
 	// Read message from underlying Reader
@@ -48,7 +56,7 @@ func (r SecureReader) Read(p []byte) (int, error) {
 	}
 
 	// Decrypt new message
-	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], &nonce, &r.key)
+	decrypted, success := box.OpenAfterPrecomputation(nil, buffer[:c], r.nonce, r.key)
 	if !success {
 		return 0, ErrDecryption
 	}
@@ -57,22 +65,33 @@ func (r SecureReader) Read(p []byte) (int, error) {
 }
 
 type SecureWriter struct {
-	w   io.Writer
-	key [32]byte
+	w     io.Writer
+	key   *[32]byte
+	nonce *[24]byte
 }
 
-func (w SecureWriter) Write(p []byte) (n int, err error) {
-	// create random nonce and send
-	var nonce [24]byte
-	if _, err = io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		return 0, ErrNonceWrite
+func (w *SecureWriter) writeNonce() error {
+	if w.nonce == nil {
+		// create random nonce and send
+		var nonce [24]byte
+		if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
+			return ErrNonceWrite
+		}
+		if _, err := w.w.Write(nonce[:]); err != nil {
+			return ErrNonceWrite
+		}
+		w.nonce = &nonce
 	}
-	if _, err = w.w.Write(nonce[:]); err != nil {
-		return 0, ErrNonceWrite
+	return nil
+}
+
+func (w *SecureWriter) Write(p []byte) (int, error) {
+	if err := w.writeNonce(); err != nil {
+		return 0, err
 	}
 
 	// encrypted and send message
-	encrypted := box.SealAfterPrecomputation(nil, p, &nonce, &w.key)
+	encrypted := box.SealAfterPrecomputation(nil, p, w.nonce, w.key)
 	if _, err := w.w.Write(encrypted); err != nil {
 		return 0, err
 	}
@@ -80,7 +99,7 @@ func (w SecureWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func handshake(conn net.Conn) (io.Reader, io.Writer, error) {
+func handshake(conn net.Conn) (*SecureReader, *SecureWriter, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {

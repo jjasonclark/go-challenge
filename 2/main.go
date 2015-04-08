@@ -12,17 +12,19 @@ import (
 )
 
 // NewSecureReader instantiates a new SecureReader
-func NewSecureReader(r io.Reader, priv, pub *[32]byte) io.Reader {
-	reader := SecureReader{r: r}
-	box.Precompute(&reader.key, pub, priv)
-	return reader
+func NewSecureReader(r io.Reader, priv, pub *[32]byte) *SecureReader {
+	var key [32]byte
+	reader := SecureReader{r: r, key: &key}
+	box.Precompute(reader.key, pub, priv)
+	return &reader
 }
 
 // NewSecureWriter instantiates a new SecureWriter
-func NewSecureWriter(w io.Writer, priv, pub *[32]byte) io.Writer {
-	writer := SecureWriter{w: w}
-	box.Precompute(&writer.key, pub, priv)
-	return writer
+func NewSecureWriter(w io.Writer, priv, pub *[32]byte) *SecureWriter {
+	var key [32]byte
+	writer := SecureWriter{w: w, key: &key}
+	box.Precompute(writer.key, pub, priv)
+	return &writer
 }
 
 // Dial generates a private/public key pair,
