@@ -27,14 +27,14 @@ var (
 	ErrNonceRead = errors.New("could not read nonce value")
 )
 
-// SecureReader implements NACL box encryption for an io.Reader object.
+// SecureReader implements NaCl box encryption for an io.Reader object.
 type SecureReader struct {
 	r     io.Reader
 	key   *[32]byte
 	nonce *[24]byte
 }
 
-// Read and decrypt message from underlying io.Reader.
+// Read reads from the underlying io.Reader and decrypts the contents into p.
 func (r *SecureReader) Read(p []byte) (int, error) {
 	// Each message starts with a nonce
 	// Only read the nonce once
@@ -62,14 +62,14 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	return copy(p, decrypted), err
 }
 
-// SecureWriter implements NACL box encryption for an io.Writer object.
+// SecureWriter implements NaCl box encryption for an io.Writer object.
 type SecureWriter struct {
 	w     io.Writer
 	key   *[32]byte
 	nonce *[24]byte
 }
 
-// Encrypt and write message to underlying io.Writer.
+// Write encryptes the contents of p and writes it to the underlying io.Writer.
 func (w *SecureWriter) Write(p []byte) (int, error) {
 	// Each message starts with a generated nonce
 	// Only write the nonce once
