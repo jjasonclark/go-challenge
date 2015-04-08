@@ -87,8 +87,8 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// NewSecureConn instantiates a new SecureReader and SecureWriter with
-// public keys exchanged.
+// NewSecureConn instantiates a new io.ReadWriteCloser backed by a
+// SecureReader and SecureWriter with public keys already exchanged.
 func NewSecureConn(conn net.Conn) (io.ReadWriteCloser, error) {
 	// Generate random key pair
 	pub, priv, err := box.GenerateKey(rand.Reader)
