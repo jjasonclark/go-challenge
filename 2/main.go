@@ -56,7 +56,6 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	if !success {
 		return 0, ErrDecryption
 	}
-
 	return copy(p, decrypted), err
 }
 
@@ -83,7 +82,6 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	if _, err := w.w.Write(encrypted); err != nil {
 		return 0, err
 	}
-
 	return len(p), nil
 }
 
