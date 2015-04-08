@@ -36,8 +36,7 @@ type SecureReader struct {
 
 // Read reads from the underlying io.Reader and decrypts the contents into p.
 func (r *SecureReader) Read(p []byte) (int, error) {
-	// Each message starts with a nonce
-	// Only read the nonce once
+	// Each message starts with a nonce.  Only read the nonce once.
 	if r.nonce == nil {
 		var nonce [24]byte
 		if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
@@ -71,8 +70,7 @@ type SecureWriter struct {
 
 // Write encryptes the contents of p and writes it to the underlying io.Writer.
 func (w *SecureWriter) Write(p []byte) (int, error) {
-	// Each message starts with a generated nonce
-	// Only write the nonce once
+	// Each message starts with a generated nonce. Only write the nonce once.
 	if w.nonce == nil {
 		var nonce [24]byte
 		if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
