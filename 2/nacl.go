@@ -25,6 +25,7 @@ var ErrNonceWrite = errors.New("Could not send nonce value")
 // Error reading nonce value for message
 var ErrNonceRead = errors.New("Could not read nonce value")
 
+// SecureReader implements NaCl box encryption for an io.Reader object.
 type SecureReader struct {
 	r     io.Reader
 	key   *[32]byte
@@ -64,6 +65,7 @@ func (r *SecureReader) Read(p []byte) (int, error) {
 	return copy(p, decrypted), err
 }
 
+// SecureWriter implements NaCl box encryption for an io.Writer object.
 type SecureWriter struct {
 	w     io.Writer
 	key   *[32]byte
