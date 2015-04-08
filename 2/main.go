@@ -72,10 +72,7 @@ func (w *SecureWriter) Write(p []byte) (int, error) {
 	// Each message starts with a generated nonce. Only write the nonce once.
 	if w.nonce == nil {
 		var nonce [24]byte
-		if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
-			return 0, ErrNonceWrite
-		}
-		if _, err := w.w.Write(nonce[:]); err != nil {
+		if _, err := io.ReadFull(io.TeeReader(rand.Reader, w.w), nonce[:]); err != nil {
 			return 0, ErrNonceWrite
 		}
 		w.nonce = &nonce
