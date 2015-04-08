@@ -36,24 +36,16 @@ type SecureReader struct {
 	nonce *[24]byte
 }
 
-// Read nonce from underlying Reader
-// Only first call will read the nonce. Subsequent calls return nil
-func (r *SecureReader) readNonce() error {
-	if r.nonce == nil {
-		var nonce [24]byte
-		if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
-			return ErrNonceRead
-		}
-		r.nonce = &nonce
-	}
-	return nil
-}
-
 // Read and decrypt
 func (r *SecureReader) Read(p []byte) (int, error) {
 	// Each message starts with a nonce
-	if err := r.readNonce(); err != nil {
-		return 0, err
+	// Only read the nonce once
+	if r.nonce == nil {
+		var nonce [24]byte
+		if _, err := io.ReadFull(r.r, nonce[:]); err != nil {
+			return 0, ErrNonceRead
+		}
+		r.nonce = &nonce
 	}
 
 	// Read message from underlying Reader
@@ -79,27 +71,19 @@ type SecureWriter struct {
 	nonce *[24]byte
 }
 
-// Generate and write nonce to underlying writer
-// Only first call will write the nonce. Subsequent calls return nil
-func (w *SecureWriter) writeNonce() error {
+// Encrypt and write
+func (w *SecureWriter) Write(p []byte) (int, error) {
+	// Each message starts with a generated nonce
+	// Only write the nonce once
 	if w.nonce == nil {
 		var nonce [24]byte
 		if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
-			return ErrNonceWrite
+			return 0, ErrNonceWrite
 		}
 		if _, err := w.w.Write(nonce[:]); err != nil {
-			return ErrNonceWrite
+			return 0, ErrNonceWrite
 		}
 		w.nonce = &nonce
-	}
-	return nil
-}
-
-// Encrypt and write
-func (w *SecureWriter) Write(p []byte) (int, error) {
-	// Each message starts with a nonce
-	if err := w.writeNonce(); err != nil {
-		return 0, err
 	}
 
 	// encrypted and send message
